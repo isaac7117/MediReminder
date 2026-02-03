@@ -1,0 +1,63 @@
+{
+  "name": "MediReminder",
+  "short_name": "MediReminder",
+  "description": "Never miss a dose again - Intelligent medication reminders",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0284c7",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/screenshot-2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["health", "medical", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/dashboard.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Add Medication",
+      "url": "/medications/new",
+      "icons": [{ "src": "/icons/add.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Reminders",
+      "url": "/reminders",
+      "icons": [{ "src": "/icons/reminders.png", "sizes": "192x192" }]
+    }
+  ]
+}

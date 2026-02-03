@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  email         String        @unique
+  password      String
+  fullName      String
+  dateOfBirth   DateTime?
+  phoneNumber   String?
+  profileImage  String?
+  pushSubscriptions String[] // JSON array of push subscriptions
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  medications   Medication[]
+  reminders     Reminder[]
+}
+
+model Medication {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String    @db.ObjectId
+  name                  String
+  dosage                String
+  frequencyType         String    // 'hourly', 'daily', 'weekly', 'custom'
+  frequencyValue        Int
+  frequencyTimes        String[]  // JSON array of times (HH:mm format)
+  frequencyDays         Int[]     // Days of week (0-6)
+  startDate             DateTime
+  endDate               DateTime?
+  isContinuous          Boolean   @default(false)
+  instructions          String?
+  imageUrl              String?
+  prescriptionImageUrl  String?
+  active                Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminders             Reminder[]
+
+  @@index([userId])
+}
+
+model Reminder {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  medicationId    String    @db.ObjectId
+  userId          String    @db.ObjectId
+  scheduledTime   DateTime
+  status          String    @default("pending") // 'pending', 'taken', 'missed', 'skipped'
+  takenAt         DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  medication      Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([medicationId])
+  @@index([scheduledTime])
+  @@index([status])
+}
