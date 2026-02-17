@@ -5,6 +5,7 @@ import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
 import { sendNotificationToSubscriptions } from './services/notification.service.js';
 import { regenerateAllReminders, markMissedReminders } from './services/scheduler.service.js';
+import { runOcrFineTuningJob, refreshOcrTrainingJobs } from './services/ocr-training.service.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
 
 // Routes
@@ -78,17 +79,33 @@ cron.schedule('* * * * *', async () => {
 
     for (const reminder of reminders) {
       const user = reminder.user;
+      const med = reminder.medication;
+      const scheduledTime = new Date(reminder.scheduledTime);
+      const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
 
       if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
+        const bodyParts = [
+          `💊 ${med.dosage}`,
+          `🕐 Hora programada: ${timeStr}`,
+        ];
+        if (med.instructions) {
+          bodyParts.push(`📋 ${med.instructions}`);
+        }
+
         await sendNotificationToSubscriptions(
           user.pushSubscriptions,
           {
-            title: `Time to take ${reminder.medication.name}`,
-            body: `${reminder.medication.dosage} - ${reminder.medication.instructions || 'No instructions'}`,
+            title: `Es hora de tomar: ${med.name}`,
+            body: bodyParts.join('\n'),
+            tag: `reminder-${reminder.id}`,
             data: {
+              type: 'medication-reminder',
               reminderId: reminder.id,
-              medicationId: reminder.medication.id,
-              medicationName: reminder.medication.name
+              medicationId: med.id,
+              medicationName: med.name,
+              dosage: med.dosage,
+              instructions: med.instructions || '',
+              scheduledTime: reminder.scheduledTime.toISOString()
             }
           }
         );
@@ -115,6 +132,28 @@ cron.schedule('5 0 * * *', async () => {
     await regenerateAllReminders();
   } catch (error) {
     console.error('Error in daily reminder regeneration:', error);
+  }
+});
+
+// Cron Job: Entrenamiento OCR automático (si está habilitado)
+const ocrTrainingCron = process.env.OCR_TRAINING_CRON || '15 3 * * *';
+cron.schedule(ocrTrainingCron, async () => {
+  if (process.env.OCR_TRAINING_AUTO_ENABLED !== 'true') return;
+  try {
+    console.log('[Cron] 🤖 Iniciando entrenamiento OCR automático...');
+    await runOcrFineTuningJob();
+  } catch (error) {
+    console.error('Error in OCR training cron job:', error);
+  }
+});
+
+// Cron Job: Refrescar estado de jobs de fine-tuning
+cron.schedule('*/30 * * * *', async () => {
+  if (!process.env.OPENAI_API_KEY) return;
+  try {
+    await refreshOcrTrainingJobs();
+  } catch (error) {
+    console.error('Error refreshing OCR training jobs:', error);
   }
 });
 

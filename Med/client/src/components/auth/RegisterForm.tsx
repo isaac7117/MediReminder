@@ -45,68 +45,68 @@ const RegisterForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre Completo</label>
         <input
           {...register('fullName', { required: 'El nombre completo es requerido' })}
           type="text"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="input-field"
           placeholder="Juan Pérez"
         />
-        {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
+        {errors.fullName && <p className="text-red-500 text-xs mt-1.5">{errors.fullName.message}</p>}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Correo Electrónico</label>
         <div className="relative">
-          <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('email', { required: 'El correo es requerido' })}
             type="email"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="input-field pl-11"
             placeholder="tu@correo.com"
           />
         </div>
-        {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+        {errors.email && <p className="text-red-500 text-xs mt-1.5">{errors.email.message}</p>}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('password', { required: 'La contraseña es requerida' })}
             type="password"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="input-field pl-11"
             placeholder="••••••••"
           />
         </div>
-        {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
-        <div className="mt-2 text-xs text-gray-600 flex items-start gap-2">
-          <AlertCircle size={16} className="mt-0.5" />
-          <span>Máx 8 caracteres, mayúscula, minúscula y números</span>
+        {errors.password && <p className="text-red-500 text-xs mt-1.5">{errors.password.message}</p>}
+        <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-50/60 border border-primary-100">
+          <AlertCircle size={14} className="text-primary-500 shrink-0" />
+          <span className="text-xs text-primary-700">Mín. 8 caracteres, mayúscula, minúscula y números</span>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Confirmar Contraseña</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirmar Contraseña</label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('confirmPassword', { required: 'Por favor confirma tu contraseña' })}
             type="password"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="input-field pl-11"
             placeholder="••••••••"
           />
         </div>
-        {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>}
+        {errors.confirmPassword && <p className="text-red-500 text-xs mt-1.5">{errors.confirmPassword.message}</p>}
       </div>
 
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
+        className="w-full btn-primary py-3 text-sm mt-2"
       >
         {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
       </button>

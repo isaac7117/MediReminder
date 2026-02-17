@@ -24,6 +24,7 @@ model User {
 
   medications   Medication[]
   reminders     Reminder[]
+  ocrTrainingSamples OcrTrainingSample[]
 }
 
 model Medication {
@@ -69,4 +70,51 @@ model Reminder {
   @@index([medicationId])
   @@index([scheduledTime])
   @@index([status])
+}
+
+model OcrTrainingSample {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String?  @db.ObjectId
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source           String
+  ocrText          String
+  modelOutput      Json?
+  correctedOutput  Json
+  consent          Boolean  @default(false)
+  includeInTraining Boolean @default(false)
+  language         String?
+  imageHash        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([consent, includeInTraining])
+}
+
+model OcrScanMetric {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String?  @db.ObjectId
+  modelUsed       String
+  confidence      String
+  medicationCount Int
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([modelUsed])
+  @@index([createdAt])
+}
+
+model OcrTrainingJob {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  status           String
+  baseModel        String
+  fineTunedModelId String?
+  trainingFileId   String?
+  fineTuneJobId    String?
+  sampleCount      Int
+  error            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  startedAt        DateTime?
+  finishedAt       DateTime?
 }

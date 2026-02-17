@@ -72,8 +72,9 @@ export const useMedications = (options: UseMedicationsOptions = { autoFetch: tru
   }, []);
 
   useEffect(() => {
-    // Solo fetch si autoFetch está habilitado
-    if (options.autoFetch) {
+    // Solo fetch si autoFetch está habilitado Y el usuario está autenticado
+    const token = localStorage.getItem('authToken');
+    if (options.autoFetch && token) {
       fetchMedications(true);
     }
   }, []); // Sin dependencias para ejecutar solo una vez

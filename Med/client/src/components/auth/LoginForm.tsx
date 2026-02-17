@@ -27,39 +27,39 @@ const LoginForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Correo Electrónico</label>
         <div className="relative">
-          <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('email', { required: 'El correo es requerido' })}
             type="email"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="input-field pl-11"
             placeholder="tu@correo.com"
           />
         </div>
-        {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+        {errors.email && <p className="text-red-500 text-xs mt-1.5">{errors.email.message}</p>}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Contraseña</label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
+          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('password', { required: 'La contraseña es requerida' })}
             type="password"
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="input-field pl-11"
             placeholder="••••••••"
           />
         </div>
-        {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+        {errors.password && <p className="text-red-500 text-xs mt-1.5">{errors.password.message}</p>}
       </div>
 
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
+        className="w-full btn-primary py-3 text-sm"
       >
         {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
       </button>

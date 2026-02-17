@@ -232,17 +232,17 @@ const ScannerPage: React.FC = () => {
   return (
     <>
       <Navbar />
-      <div className="bg-gray-50 min-h-screen py-8">
-        <div className="max-w-4xl mx-auto px-4">
+      <div className="bg-medical-mesh min-h-screen py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <button
             onClick={() => navigate('/medications')}
-            className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6 font-semibold"
+            className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6 text-sm font-medium"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
             Volver a Medicamentos
           </button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Escáner - Opcional, no bloquea el formulario */}
             <div>
               <PrescriptionScanner onResultReceived={handleOCRResult} />
@@ -252,15 +252,17 @@ const ScannerPage: React.FC = () => {
             <div>
               {/* Sección de medicamentos detectados por Gemini */}
               {geminiResult && geminiResult.medications && geminiResult.medications.length > 0 && (
-                <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6 mb-6 border border-primary-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Wand2 className="text-primary-600" size={24} />
-                    <h3 className="text-lg font-bold text-primary-900">✨ Gemini detectó {geminiResult.medications.length} medicamento(s)</h3>
+                <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-2xl p-6 mb-6 border border-primary-100">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="p-2 bg-white rounded-xl shadow-sm">
+                      <Wand2 className="text-primary-600" size={20} />
+                    </div>
+                    <h3 className="text-sm font-bold text-primary-900">Gemini detectó {geminiResult.medications.length} medicamento(s)</h3>
                   </div>
 
                   {/* Información de la receta */}
                   {(geminiResult.patientName || geminiResult.doctorName || geminiResult.diagnosis) && (
-                    <div className="bg-white rounded p-3 mb-4 text-sm space-y-1">
+                    <div className="bg-white/80 rounded-xl p-3 mb-4 text-xs space-y-1">
                       {geminiResult.patientName && <p><strong>Paciente:</strong> {geminiResult.patientName}</p>}
                       {geminiResult.doctorName && <p><strong>Doctor:</strong> {geminiResult.doctorName}</p>}
                       {geminiResult.diagnosis && <p><strong>Diagnóstico:</strong> {geminiResult.diagnosis}</p>}
@@ -268,98 +270,100 @@ const ScannerPage: React.FC = () => {
                   )}
 
                   {/* Lista de medicamentos detectados */}
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-2.5 max-h-96 overflow-y-auto">
                     {geminiResult.medications.map((med, idx) => (
-                      <div key={idx} className="bg-white rounded-lg p-4 border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all">
+                      <div key={idx} className="bg-white rounded-xl p-4 border border-gray-100 hover:border-primary-200 hover:shadow-medical transition-all duration-200">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <h4 className="font-bold text-gray-900">{med.name}</h4>
-                            <p className="text-sm text-gray-600">{med.dosage}</p>
+                            <h4 className="font-semibold text-medical-dark text-sm">{med.name}</h4>
+                            <p className="text-xs text-gray-500">{med.dosage}</p>
                           </div>
-                          <div className="flex items-center gap-1">
-                            {geminiResult.confidence === 'high' && <CheckCircle2 size={20} className="text-green-600" />}
-                            {geminiResult.confidence === 'medium' && <AlertCircle size={20} className="text-yellow-600" />}
-                            {geminiResult.confidence === 'low' && <AlertCircle size={20} className="text-orange-600" />}
-                            <span className="text-xs font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700">
-                              {geminiResult.confidence === 'high' ? 'Alta' : geminiResult.confidence === 'medium' ? 'Media' : 'Baja'} confianza
+                          <div className="flex items-center gap-1.5">
+                            {geminiResult.confidence === 'high' && <CheckCircle2 size={16} className="text-secondary-500" />}
+                            {geminiResult.confidence === 'medium' && <AlertCircle size={16} className="text-amber-500" />}
+                            {geminiResult.confidence === 'low' && <AlertCircle size={16} className="text-orange-500" />}
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-lg ${
+                              geminiResult.confidence === 'high' ? 'badge-success' : geminiResult.confidence === 'medium' ? 'badge-warning' : 'badge-danger'
+                            }`}>
+                              {geminiResult.confidence === 'high' ? 'Alta' : geminiResult.confidence === 'medium' ? 'Media' : 'Baja'}
                             </span>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 space-y-1">
-                          <p> <strong>Frecuencia:</strong> {med.frequencyValue}x {med.frequencyType} a las {med.frequencyTimes.join(', ')}</p>
-                          {med.duration && <p> <strong>Duración:</strong> {med.duration}</p>}
-                          {med.indication && <p> <strong>Indicación:</strong> {med.indication}</p>}
-                        </p>
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <p><strong>Frecuencia:</strong> {med.frequencyValue}x {med.frequencyType} a las {med.frequencyTimes.join(', ')}</p>
+                          {med.duration && <p><strong>Duración:</strong> {med.duration}</p>}
+                          {med.indication && <p><strong>Indicación:</strong> {med.indication}</p>}
+                        </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Botones de acción */}
-                  <div className="flex gap-3 mt-4">
+                  <div className="flex gap-2.5 mt-4">
                     <button
                       onClick={handleAutoCreateMedications}
                       disabled={isCreatingAuto}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-2 px-4 rounded-lg hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2"
                     >
                       {isCreatingAuto ? (
                         <>
-                          <div className="animate-spin">⟳</div>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
                           Creando...
                         </>
                       ) : (
                         <>
-                          <Wand2 size={18} />
+                          <Wand2 size={16} />
                           Crear Automáticamente
                         </>
                       )}
                     </button>
                     <button
                       onClick={() => setGeminiResult(null)}
-                      className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all"
+                      className="btn-secondary py-2.5 text-sm flex items-center justify-center gap-1.5"
                     >
-                      <X size={18} />
+                      <X size={16} />
                       Descartar
                     </button>
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
-                <h3 className="text-xl font-bold mb-4">Detalles del Medicamento</h3>
+              <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-medical border border-gray-100 p-6 space-y-5">
+                <h3 className="text-lg font-bold text-medical-dark">Detalles del Medicamento</h3>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Nombre del Medicamento *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre del Medicamento *</label>
                   <input
                     name="name"
                     type="text"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                     placeholder="p.ej., Aspirina"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Dosis *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Dosis *</label>
                   <input
                     name="dosage"
                     type="text"
                     value={formData.dosage}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                     placeholder="p.ej., 500mg"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Tipo de Frecuencia</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Frecuencia</label>
                   <select
                     name="frequencyType"
                     value={formData.frequencyType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                   >
                     <option value="daily">Diario</option>
                     <option value="weekly">Semanal</option>
@@ -368,19 +372,19 @@ const ScannerPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Veces por Día</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Veces por Día</label>
                   <input
                     name="frequencyValue"
                     type="number"
                     value={formData.frequencyValue}
                     onChange={handleInputChange}
                     min="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Horarios (HH:MM) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Horarios (HH:MM) *</label>
                   <div className="space-y-2">
                     {formData.frequencyTimes.map((time, index) => (
                       <div key={index} className="flex gap-2">
@@ -388,13 +392,13 @@ const ScannerPage: React.FC = () => {
                           type="time"
                           value={time}
                           onChange={(e) => handleTimeChange(index, e.target.value)}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="input-field flex-1"
                         />
                         {formData.frequencyTimes.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleTimeRemove(index)}
-                            className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                            className="px-3 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium"
                           >
                             Eliminar
                           </button>
@@ -405,54 +409,54 @@ const ScannerPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleTimeAdd}
-                    className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-medium"
+                    className="mt-2 btn-ghost text-sm"
                   >
                     + Agregar Horario
                   </button>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fecha de Inicio *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Fecha de Inicio *</label>
                   <input
                     name="startDate"
                     type="date"
                     value={formData.startDate}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fecha de Finalización</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Fecha de Finalización</label>
                   <input
                     name="endDate"
                     type="date"
                     value={formData.endDate}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field"
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <input
                     name="isContinuous"
                     type="checkbox"
                     id="continuous"
                     checked={formData.isContinuous}
                     onChange={handleInputChange}
-                    className="w-4 h-4"
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
                   />
-                  <label htmlFor="continuous" className="text-sm">Medicamento continuo</label>
+                  <label htmlFor="continuous" className="text-sm font-medium text-gray-700">Medicamento continuo</label>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Instrucciones</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Instrucciones</label>
                   <textarea
                     name="instructions"
                     value={formData.instructions}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input-field resize-none"
                     placeholder="p.ej., Tomar con comida"
                     rows={3}
                   />
@@ -461,9 +465,9 @@ const ScannerPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                  className="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2"
                 >
-                  <Plus size={20} />
+                  <Plus size={18} />
                   {isLoading ? 'Creando...' : 'Crear Medicamento'}
                 </button>
               </form>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, Pill } from 'lucide-react';
 import { getTimeUntilReminder } from '../../utils/dateHelpers';
 import type { Reminder } from '../../types/reminder.types';
 
@@ -28,63 +28,75 @@ const NextMedication: React.FC<NextMedicationProps> = ({ reminder, onTake, isLoa
 
   if (!reminder) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <CheckCircle className="text-green-500 mx-auto mb-4" size={48} />
-        <h3 className="text-xl font-semibold mb-2">¡Completado!</h3>
-        <p className="text-gray-600">No hay medicamentos pendientes por ahora.</p>
+      <div className="bg-white rounded-2xl shadow-medical border border-gray-100 p-8 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-secondary-50 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="text-secondary-500" size={30} />
+        </div>
+        <h3 className="text-lg font-bold text-medical-dark mb-1">¡Todo al día!</h3>
+        <p className="text-sm text-gray-500">No hay medicamentos pendientes por ahora.</p>
       </div>
     );
   }
 
   if (!timeLeft) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <AlertCircle className="text-yellow-500 mx-auto mb-4" size={48} />
-        <h3 className="text-xl font-semibold">¡Es hora de tomar tu medicamento!</h3>
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl shadow-medical border border-amber-200 p-8 text-center pulse-ring">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="text-amber-600" size={30} />
+        </div>
+        <h3 className="text-lg font-bold text-medical-dark">¡Es hora de tomar tu medicamento!</h3>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg shadow p-8">
-      <div className="text-center mb-6">
-        <p className="text-sm text-blue-600 font-semibold uppercase tracking-wide">Próximo Medicamento</p>
-        <h2 className="text-3xl font-bold text-gray-900 mt-2">{reminder.medication?.name}</h2>
-        <p className="text-lg text-gray-700 mt-2">{reminder.medication?.dosage}</p>
+    <div className="bg-gradient-to-br from-primary-50 via-white to-secondary-50 rounded-2xl shadow-medical border border-primary-100 p-6 md:p-8">
+      <div className="flex items-center gap-2 mb-6">
+        <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+          <Pill className="text-primary-600" size={16} />
+        </div>
+        <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider">Próximo Medicamento</p>
       </div>
 
-      <div className="bg-white rounded-lg p-6 mb-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-medical-dark">{reminder.medication?.name}</h2>
+        <p className="text-sm text-gray-500 mt-1">{reminder.medication?.dosage}</p>
+      </div>
+
+      {/* Countdown */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-inner-glow">
         <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-3xl font-bold text-blue-600">{String(timeLeft.hours).padStart(2, '0')}</p>
-            <p className="text-sm text-gray-600">Horas</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-blue-600">{String(timeLeft.minutes).padStart(2, '0')}</p>
-            <p className="text-sm text-gray-600">Minutos</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-blue-600">{String(timeLeft.seconds).padStart(2, '0')}</p>
-            <p className="text-sm text-gray-600">Segundos</p>
-          </div>
+          {[
+            { value: timeLeft.hours, label: 'Horas' },
+            { value: timeLeft.minutes, label: 'Minutos' },
+            { value: timeLeft.seconds, label: 'Segundos' },
+          ].map((unit, i) => (
+            <div key={i}>
+              <div className="bg-gradient-to-b from-primary-500 to-primary-600 text-white rounded-xl py-3 px-2 shadow-medical">
+                <p className="text-2xl md:text-3xl font-bold tabular-nums">{String(unit.value).padStart(2, '0')}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 font-medium">{unit.label}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="flex justify-center">
-        <button
-          onClick={() => onTake(reminder.id)}
-          disabled={isLoading}
-          className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-8 rounded-lg transition disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Confirmando...' : 'Yo lo Tomé'}
-        </button>
-      </div>
+      <button
+        onClick={() => onTake(reminder.id)}
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-medical hover:shadow-medical-md disabled:cursor-not-allowed active:scale-[0.98]"
+      >
+        {isLoading ? 'Confirmando...' : 'Marcar como Tomado'}
+      </button>
 
       {reminder.medication?.instructions && (
-        <div className="mt-6 bg-white rounded p-4">
-          <p className="text-sm text-gray-600">
-            <strong>Instrucciones:</strong> {reminder.medication.instructions}
-          </p>
+        <div className="mt-5 bg-white rounded-xl border border-gray-100 p-4">
+          <div className="flex items-start gap-2">
+            <Clock className="text-primary-400 shrink-0 mt-0.5" size={14} />
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-gray-700">Instrucciones:</span> {reminder.medication.instructions}
+            </p>
+          </div>
         </div>
       )}
     </div>

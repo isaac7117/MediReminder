@@ -131,20 +131,37 @@ export const updateMedication = async (req: Request, res: Response) => {
     const updated = await prisma.medication.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(dosage && { dosage }),
-        ...(frequencyType && { frequencyType }),
-        ...(frequencyValue && { frequencyValue }),
-        ...(frequencyTimes && { frequencyTimes }),
-        ...(frequencyDays && { frequencyDays }),
-        ...(endDate && { endDate: new Date(endDate) }),
+        ...(name !== undefined && { name }),
+        ...(dosage !== undefined && { dosage }),
+        ...(frequencyType !== undefined && { frequencyType }),
+        ...(frequencyValue !== undefined && { frequencyValue }),
+        ...(frequencyTimes !== undefined && { frequencyTimes }),
+        ...(frequencyDays !== undefined && { frequencyDays }),
+        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(isContinuous !== undefined && { isContinuous }),
-        ...(instructions && { instructions }),
-        ...(imageUrl && { imageUrl }),
-        ...(prescriptionImageUrl && { prescriptionImageUrl }),
+        ...(instructions !== undefined && { instructions }),
+        ...(imageUrl !== undefined && { imageUrl }),
+        ...(prescriptionImageUrl !== undefined && { prescriptionImageUrl }),
         ...(active !== undefined && { active })
       }
     });
+
+    // Regenerar recordatorios si cambiaron datos de frecuencia/horarios
+    const scheduleChanged = frequencyType !== undefined || frequencyValue !== undefined || 
+                            frequencyTimes !== undefined || frequencyDays !== undefined || 
+                            endDate !== undefined || active !== undefined;
+    if (scheduleChanged && updated.active) {
+      try {
+        await generateRemindersForMedication(
+          updated.id,
+          userId!,
+          updated.startDate,
+          updated.endDate || undefined
+        );
+      } catch (err) {
+        console.warn('[Medication] Error regenerando recordatorios tras actualizar:', err);
+      }
+    }
 
     res.json({
       message: 'Medication updated successfully',

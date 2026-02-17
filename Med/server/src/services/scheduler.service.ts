@@ -18,10 +18,8 @@ export const generateRemindersForMedication = async (
   startDate: Date,
   endDate?: Date
 ): Promise<void> => {
-  const prismaClient = new PrismaClient();
-
   try {
-    const medication = await prismaClient.medication.findUnique({
+    const medication = await prisma.medication.findUnique({
       where: { id: medicationId }
     });
 
@@ -42,7 +40,7 @@ export const generateRemindersForMedication = async (
     }
 
     // Solo eliminar recordatorios FUTUROS pendientes para este medicamento
-    await prismaClient.reminder.deleteMany({
+    await prisma.reminder.deleteMany({
       where: {
         medicationId,
         userId,
@@ -100,9 +98,32 @@ export const generateRemindersForMedication = async (
         }
         currentDate.setDate(currentDate.getDate() + 7);
       } else if (medication.frequencyType === 'hourly') {
-        for (let i = 0; i < medication.frequencyValue * 24; i++) {
+        // Generar recordatorios cada N horas desde el inicio del día
+        const hourInterval = medication.frequencyValue || 1;
+        let hourCursor = new Date(currentDate);
+        hourCursor.setHours(8, 0, 0, 0); // Empezar a las 8am
+
+        const dayEnd = new Date(currentDate);
+        dayEnd.setHours(22, 0, 0, 0); // Terminar a las 10pm
+
+        while (hourCursor <= dayEnd && hourCursor <= effectiveEndDate) {
+          if (hourCursor > now) {
+            reminders.push({
+              medicationId,
+              userId,
+              scheduledTime: new Date(hourCursor),
+              status: 'pending'
+            });
+          }
+          hourCursor = new Date(hourCursor.getTime() + hourInterval * 60 * 60 * 1000);
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else if (medication.frequencyType === 'custom') {
+        // Custom: usar frequencyTimes directamente
+        for (const time of medication.frequencyTimes) {
+          const [hours, minutes] = time.split(':').map(Number);
           const reminderTime = new Date(currentDate);
-          reminderTime.setHours(reminderTime.getHours() + medication.frequencyValue);
+          reminderTime.setHours(hours, minutes, 0, 0);
 
           if (reminderTime > now && reminderTime <= effectiveEndDate) {
             reminders.push({
@@ -113,7 +134,25 @@ export const generateRemindersForMedication = async (
             });
           }
         }
-        break;
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else {
+        // Tipo de frecuencia desconocido - tratar como diario para evitar loop infinito
+        console.warn(`[Scheduler] Tipo de frecuencia desconocido: ${medication.frequencyType}, tratando como diario`);
+        for (const time of medication.frequencyTimes) {
+          const [hours, minutes] = time.split(':').map(Number);
+          const reminderTime = new Date(currentDate);
+          reminderTime.setHours(hours, minutes, 0, 0);
+
+          if (reminderTime > now && reminderTime <= effectiveEndDate) {
+            reminders.push({
+              medicationId,
+              userId,
+              scheduledTime: reminderTime,
+              status: 'pending'
+            });
+          }
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
       }
     }
 
@@ -122,24 +161,23 @@ export const generateRemindersForMedication = async (
     // Create reminders in batches
     const batchSize = 100;
     for (let i = 0; i < reminders.length; i += batchSize) {
-      await prismaClient.reminder.createMany({
+      await prisma.reminder.createMany({
         data: reminders.slice(i, i + batchSize)
       });
     }
-  } finally {
-    await prismaClient.$disconnect();
+  } catch (error) {
+    console.error(`[Scheduler] Error generando recordatorios para medicamento ${medicationId}:`, error);
+    throw error;
   }
 };
 
 // Función para regenerar recordatorios de todos los medicamentos activos
 export const regenerateAllReminders = async (): Promise<void> => {
-  const prismaClient = new PrismaClient();
-
   try {
     console.log('[Scheduler] 🔄 Regenerando recordatorios para todos los medicamentos activos...');
     
     // Obtener todos los medicamentos activos
-    const activeMedications = await prismaClient.medication.findMany({
+    const activeMedications = await prisma.medication.findMany({
       where: {
         active: true,
         OR: [
@@ -164,21 +202,20 @@ export const regenerateAllReminders = async (): Promise<void> => {
     }
 
     console.log('[Scheduler] ✅ Regeneración de recordatorios completada');
-  } finally {
-    await prismaClient.$disconnect();
+  } catch (error) {
+    console.error('[Scheduler] Error en regeneración:', error);
+    throw error;
   }
 };
 
 // Función para marcar recordatorios pasados como "perdidos"
 export const markMissedReminders = async (): Promise<void> => {
-  const prismaClient = new PrismaClient();
-
   try {
     const now = new Date();
     // Dar un margen de 2 horas antes de marcar como perdido
     const cutoffTime = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-    const result = await prismaClient.reminder.updateMany({
+    const result = await prisma.reminder.updateMany({
       where: {
         status: 'pending',
         scheduledTime: {
@@ -193,8 +230,9 @@ export const markMissedReminders = async (): Promise<void> => {
     if (result.count > 0) {
       console.log(`[Scheduler] Marcados ${result.count} recordatorios como perdidos`);
     }
-  } finally {
-    await prismaClient.$disconnect();
+  } catch (error) {
+    console.error('[Scheduler] Error marcando recordatorios perdidos:', error);
+    throw error;
   }
 };
 

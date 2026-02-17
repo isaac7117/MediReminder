@@ -70,8 +70,13 @@ export const getUpcomingReminders = async (req: Request, res: Response) => {
     const userId = req.userId;
     const { hours = '24' } = req.query;
 
+    const parsedHours = parseInt(hours as string);
+    if (isNaN(parsedHours) || parsedHours < 1 || parsedHours > 168) {
+      return res.status(400).json({ message: 'Parámetro hours inválido (1-168)' });
+    }
+
     const now = new Date();
-    const futureDate = new Date(now.getTime() + parseInt(hours as string) * 60 * 60 * 1000);
+    const futureDate = new Date(now.getTime() + parsedHours * 60 * 60 * 1000);
 
     const reminders = await prisma.reminder.findMany({
       where: {
@@ -106,6 +111,10 @@ export const takeReminder = async (req: Request, res: Response) => {
 
     if (!reminder) {
       return res.status(404).json({ message: 'Reminder not found' });
+    }
+
+    if (reminder.status !== 'pending') {
+      return res.status(400).json({ message: `No se puede marcar como tomado un recordatorio con estado '${reminder.status}'` });
     }
 
     const updated = await prisma.reminder.update({
@@ -143,6 +152,10 @@ export const skipReminder = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Reminder not found' });
     }
 
+    if (reminder.status !== 'pending') {
+      return res.status(400).json({ message: `No se puede omitir un recordatorio con estado '${reminder.status}'` });
+    }
+
     const updated = await prisma.reminder.update({
       where: { id },
       data: {
@@ -169,6 +182,9 @@ export const getAdherence = async (req: Request, res: Response) => {
     const { days = '7' } = req.query;
 
     const daysBack = parseInt(days as string);
+    if (isNaN(daysBack) || daysBack < 1 || daysBack > 365) {
+      return res.status(400).json({ message: 'Parámetro days inválido (1-365)' });
+    }
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
     startDate.setHours(0, 0, 0, 0);

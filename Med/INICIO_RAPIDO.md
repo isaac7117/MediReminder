@@ -1,28 +1,28 @@
-# 🚀 INICIO RÁPIDO - Aplicación de Recordatorios de Medicamentos
+# 🚀 INICIO RÁPIDO - MediReminder
 
 ## ¡BIENVENIDO! 🎉
 
-Tu aplicación está **100% lista** con la interfaz completa en español.
+Tu aplicación está **100% lista** para usar. Interfaz completa en español con todas las funcionalidades.
 
 ---
 
-## ⚡ Pasos Inmediatos
+## ⚡ Pasos para Iniciar
 
 ### 1. Abre DOS terminales PowerShell
 
 **Terminal 1 - Backend:**
 ```powershell
-cd c:\Users\eslas\OneDrive\Desktop\organiza-tech\medication-reminder-app\server
+cd server
 npm run dev
 ```
-Deberías ver: `Server is running on port 5000`
+✅ Deberías ver: `Server is running on port 5000`
 
 **Terminal 2 - Frontend:**
 ```powershell
-cd c:\Users\eslas\OneDrive\Desktop\organiza-tech\medication-reminder-app\client
+cd client
 npm run dev
 ```
-Deberías ver: El servidor Vite iniciando en puerto 5173
+✅ Deberías ver: `Local: http://localhost:5173/`
 
 ### 2. Abre tu navegador
 ```
@@ -31,196 +31,143 @@ http://localhost:5173
 
 ---
 
-## 📝 Primera Vez Usando
+## 📝 Primera Vez - Pasos Básicos
 
-### Crear Cuenta:
-1. Haz clic en **"Crea una ahora"**
-2. Completa:
+### 1. Crear Cuenta
+1. Haz clic en **"Crear Cuenta"**
+2. Completa el formulario:
    - **Nombre**: Tu nombre completo
    - **Correo**: tu@email.com
-   - **Contraseña**: Mín. 8 caracteres (1 mayúscula, 1 minúscula, 1 número)
-   - **Confirmar**: Repite la contraseña
+   - **Contraseña**: Mínimo 8 caracteres (1 mayúscula, 1 minúscula, 1 número)
+   - **Confirmar Contraseña**: Repite la contraseña
 3. Haz clic en **"Crear Cuenta"**
+4. ✅ Serás redirigido automáticamente al panel
 
-### Tu Primer Medicamento:
+### 2. Agregar Tu Primer Medicamento
 1. Haz clic en **"Medicamentos"** en el menú
 2. Haz clic en **"+ Agregar"**
-3. Completa:
-   - **Nombre del Medicamento**: Ej: "Ibuprofeno"
+3. Completa el formulario:
+   - **Nombre**: Ej: "Ibuprofeno"
    - **Dosis**: Ej: "500mg"
-   - **Tipo de Frecuencia**: "Diario"
-   - **Veces por Día**: 1 o 2
-   - **Horarios**: Ej: 09:00
+   - **Frecuencia**: "Diario"
+   - **Veces por Día**: 2
+   - **Horarios**: 09:00, 21:00
    - **Fecha de Inicio**: Hoy
-   - **Medicamento Continuo**: Marca la caja
+   - Marca **"Medicamento Continuo"** si no tiene fin
 4. Haz clic en **"+ Crear Medicamento"**
+5. ✅ Verás: "¡Medicamento creado exitosamente!"
 
-### Ver Recordatorios:
-1. Ve a **"Recordatorios"** en el menú
-2. Verás tus medicamentos pendientes
-3. Haz clic en **"Tomar Ahora"** cuando lo tomes
-4. Verás "¡Recordatorio marcado como tomado!"
-
----
-
-## 🎯 Funcionalidades Principales
-
-| Función | Ubicación | Acceso |
-|---------|-----------|--------|
-| Crear Medicamento | Medicamentos > + Agregar | ✅ Claro |
-| Ver Medicamentos | Medicamentos | ✅ Listado |
-| Recordatorios | Recordatorios | ✅ Filtrable |
-| Dashboard | Panel de Control | ✅ Inicio |
-| Adherencia | Recordatorios (lado derecho) | ✅ Porcentaje |
+### 3. Ver y Gestionar Recordatorios
+1. Haz clic en **"Recordatorios"** en el menú
+2. Verás todos tus medicamentos programados
+3. Cuando tomes un medicamento:
+   - Haz clic en **"Tomar Ahora"** (botón verde)
+   - ✅ Verás: "¡Recordatorio marcado como tomado!"
+4. Para omitir:
+   - Haz clic en **"Omitir"** (botón gris)
 
 ---
 
-## 🔍 Verificar que Todo Funciona
+## 🎯 Funcionalidades Disponibles
 
-### ✅ Checklist Rápido:
-- [ ] Ver página de inicio en español
-- [ ] Crear una cuenta exitosamente
-- [ ] Iniciar sesión con esa cuenta
-- [ ] Ver "Panel de Control" en español
-- [ ] Navegar a "Medicamentos"
-- [ ] Crear un medicamento
-- [ ] Verlo en la lista
-- [ ] Ir a "Recordatorios"
-- [ ] Marcar como "Tomado"
-- [ ] Ver mensaje de confirmación en español
+### Panel de Control
+- Estadísticas generales (medicamentos activos, recordatorios, adherencia)
+- Próximo medicamento a tomar
+- Medicamentos de hoy
+- Gráfico de adherencia semanal
 
-Si todo esto funciona, **¡tu aplicación está 100% operativa!** 🎉
+### Medicamentos
+- Crear nuevos medicamentos
+- Ver lista completa
+- Editar medicamentos existentes
+- Eliminar medicamentos
+- Subir imágenes
 
----
+### Recordatorios
+- Ver todos los recordatorios
+- Filtrar por estado (Todos, Pendientes, Tomados, Perdidos)
+- Marcar como tomado
+- Omitir recordatorio
+- Ver historial
 
-## 📱 Menú Principal
-
-```
-MediReminder
-├── Panel de Control
-│   ├── Estadísticas (Medicamentos, Recordatorios, Adherencia)
-│   ├── Próximo Medicamento
-│   └── Medicamentos de Hoy
-│
-├── Medicamentos
-│   ├── Escanear (Scan prescription)
-│   ├── Agregar (Formulario)
-│   ├── Filtros (Activos/Todos)
-│   └── Tarjetas (Editar/Eliminar)
-│
-├── Recordatorios
-│   ├── Filtros (Todos/Pendientes/Tomados/Perdidos)
-│   ├── Marcar Tomado
-│   ├── Omitir
-│   └── Ver Adherencia
-│
-├── Escáner
-│   ├── Subir Receta
-│   └── OCR (Extrae datos)
-│
-└── Salir (Cierra sesión)
-```
+### Escáner OCR (Recetas)
+- Subir foto de receta médica
+- Extracción automática de datos
+- Auto-completar formulario de medicamento
+- Soporta JPG y PNG
 
 ---
 
-## 🔐 Seguridad
+## 🔧 Comandos Útiles
 
-Tu contraseña debe cumplir:
-- ✅ 8 caracteres mínimo
-- ✅ 1 letra mayúscula
-- ✅ 1 letra minúscula
-- ✅ 1 número
-
-**Ejemplo válido:** `MiPassword123`
-
----
-
-## 🐛 Si Algo No Funciona
-
-### Error: Puerto 5000 en uso
+### Reiniciar Servidores
 ```powershell
-# Encuentra el proceso
+# Detener: Ctrl + C en cada terminal
+# Iniciar nuevamente:
+cd server
+npm run dev
+
+# En otra terminal:
+cd client
+npm run dev
+```
+
+### Ver Base de Datos (Prisma Studio)
+```powershell
+cd server
+npx prisma studio
+```
+Se abrirá en: http://localhost:5555
+
+### Resetear Base de Datos (si hay problemas)
+```powershell
+cd server
+npx prisma migrate reset
+npx prisma migrate dev
+```
+
+---
+
+## 🐛 Solución de Problemas
+
+### Error: "Puerto 5000 ya está en uso"
+```powershell
 netstat -ano | findstr :5000
-
-# Mata el proceso (reemplaza XXXX con el PID)
-taskkill /PID XXXX /F
-
-# Reinicia
-npm run dev
+taskkill /PID <número-del-pid> /F
 ```
 
-### Error: Puerto 5173 en uso
-```powershell
-# Lo mismo pero con puerto 5173
-netstat -ano | findstr :5173
-taskkill /PID XXXX /F
-npm run dev
-```
+### Error: "No se puede conectar a la base de datos"
+1. Verifica que PostgreSQL/MongoDB esté corriendo
+2. Revisa tu archivo `.env` en `/server`
+3. Ejecuta: `npx prisma migrate dev`
 
-### Medicamento no se crea
-1. Abre **DevTools** (F12)
-2. Ve a **Console** - ¿hay errores rojos?
-3. Ve a **Network** - ¿responde la API?
-4. Verifica que haya completado los campos obligatorios
+### Los recordatorios no aparecen
+- Asegúrate de que el medicamento tenga horarios configurados
+- Verifica que la fecha de inicio sea hoy o anterior
+- Recarga la página (F5)
 
-### Recordatorios no aparecen
-1. Verifica que existe un medicamento
-2. Si la hora ya pasó hoy, crea uno para mañana
-3. Recarga la página (F5)
+### El OCR no funciona
+- Verifica que la imagen sea JPG o PNG
+- Asegúrate de que la receta tenga texto legible
+- Revisa que GEMINI_API_KEY esté configurada (opcional pero mejora resultados)
 
 ---
 
-## 📊 Datos de Prueba
+## 📚 Más Información
 
-### Usuario de Prueba:
-```
-Email: test@example.com
-Contraseña: TestPass123
-Nombre: Usuario de Prueba
-```
+Para documentación detallada, consulta:
 
-O simplemente **crea tu propia cuenta** - es más seguro.
+- **[README_ES.md](README_ES.md)** - Documentación principal en español
+- **[GUIA_COMPLETA.md](GUIA_COMPLETA.md)** - Guía técnica completa
 
 ---
 
-## 🎯 Próximos Pasos
+## 🎉 ¡Listo para Usar!
 
-Después de jugar con la aplicación, puedes:
+Tu aplicación **MediReminder** está 100% operativa y en español.
 
-1. **Editar Medicamentos** - El botón ya existe en la UI
-2. **Eliminar Medicamentos** - El botón ya existe
-3. **Exportar Reportes** - Backend listo
-4. **Notificaciones Push** - Service Worker registrado
-5. **Sincronización en Tiempo Real** - WebSocket disponible
-
-Contacta si necesitas ayuda con cualquiera de estas.
+**¡No olvides tomar tus medicamentos a tiempo!** 💊⏰
 
 ---
 
-## 📚 Documentación Disponible
-
-```
-medication-reminder-app/
-├─ RESUMEN_FINAL.md ...................... Este archivo
-├─ SPANISH_LOCALIZATION_COMPLETE.md ..... Detalles técnicos
-├─ TESTING_GUIDE_SPANISH.md ............. Guía de testing
-├─ README.md ............................ Documentación general
-└─ START_HERE.md ........................ Guía original
-```
-
----
-
-## 🎉 ¡Disfruta!
-
-Tu aplicación está **completamente funcional**, **100% en español**, y **lista para usar**.
-
-Si tienes dudas o necesitas agregar funcionalidades, están documentadas en el archivo técnico.
-
-**¡A cuidarse y no olvides tus medicamentos!** 💊
-
----
-
-**Aplicación:** MediReminder
-**Versión:** 1.0 - Localización Completa
-**Fecha:** 23 de Enero, 2026
-**Estado:** ✅ OPERATIVO
+**Última actualización:** Febrero 2026

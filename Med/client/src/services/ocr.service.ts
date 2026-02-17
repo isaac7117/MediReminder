@@ -16,5 +16,18 @@ export const ocrService = {
   getUserScans: async () => {
     const response = await apiClient.get('/ocr/scans');
     return response.data;
+  },
+
+  submitFeedback: async (payload: {
+    rawText: string;
+    modelOutput: any;
+    correctedOutput: any;
+    source?: string;
+    consent: boolean;
+    language?: string;
+    imageHash?: string;
+  }) => {
+    const response = await apiClient.post('/ocr/feedback', payload);
+    return response.data;
   }
 };

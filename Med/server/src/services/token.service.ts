@@ -18,9 +18,9 @@ export const createUser = async (
 
   const user = await prisma.user.create({
     data: {
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
-      fullName
+      fullName: fullName.trim()
     }
   });
 
@@ -36,17 +36,17 @@ export const loginUser = async (
   password: string
 ): Promise<TokenPayload & { user: { id: string; email: string; fullName: string } }> => {
   const user = await prisma.user.findUnique({
-    where: { email }
+    where: { email: email.toLowerCase().trim() }
   });
 
   if (!user) {
-    throw new Error('User not found');
+    throw new Error('Credenciales inválidas');
   }
 
   const isPasswordValid = await verifyPassword(password, user.password);
 
   if (!isPasswordValid) {
-    throw new Error('Invalid password');
+    throw new Error('Credenciales inválidas');
   }
 
   const token = generateToken(user.id);

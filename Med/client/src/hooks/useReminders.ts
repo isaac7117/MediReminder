@@ -82,12 +82,28 @@ export const useReminders = () => {
   };
 
   useEffect(() => {
-    // Solo fetch una vez al montar el componente
-    if (!hasFetched.current) {
+    // Solo fetch una vez al montar el componente Y si el usuario está autenticado
+    const token = localStorage.getItem('authToken');
+    if (!hasFetched.current && token) {
       hasFetched.current = true;
       fetchTodayReminders();
       fetchAdherence(7);
     }
+  }, [fetchTodayReminders, fetchAdherence]);
+
+  // Escuchar evento cuando se toma un medicamento desde una notificación
+  useEffect(() => {
+    const handleMedicationTaken = () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        // Refrescar todos los datos: recordatorios de hoy y adherencia
+        fetchTodayReminders();
+        fetchAdherence(7);
+      }
+    };
+
+    window.addEventListener('medication-taken', handleMedicationTaken);
+    return () => window.removeEventListener('medication-taken', handleMedicationTaken);
   }, [fetchTodayReminders, fetchAdherence]);
 
   return {

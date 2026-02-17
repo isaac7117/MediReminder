@@ -9,44 +9,52 @@ interface AdherenceChartProps {
 
 const AdherenceChart: React.FC<AdherenceChartProps> = ({ adherence, isLoading }) => {
   if (isLoading || !adherence) {
-    return <div className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>;
+    return <div className="h-64 skeleton"></div>;
   }
 
+  const statCards = [
+    { label: 'Tomados', value: adherence.taken, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
+    { label: 'Perdidos', value: adherence.missed, bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
+    { label: 'Omitidos', value: adherence.skipped, bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-100' },
+    { label: 'Total', value: adherence.total, bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-100' },
+  ];
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-4">Tasa de Adherencia: {adherence.adherenceRate.toFixed(1)}%</h3>
+    <div className="bg-white rounded-2xl shadow-medical border border-gray-100 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="section-title">Historial de Adherencia</h3>
+        <span className="badge-info">{adherence.adherenceRate.toFixed(1)}%</span>
+      </div>
       
       <div className="mb-6">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={adherence.dailyStats}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="taken" stackId="a" fill="#10b981" name="Tomados" />
-            <Bar dataKey="missed" stackId="a" fill="#ef4444" name="Perdidos" />
-            <Bar dataKey="skipped" stackId="a" fill="#9ca3af" name="Omitidos" />
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={adherence.dailyStats} barCategoryGap="20%">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0fdfa" vertical={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                fontSize: '13px',
+              }}
+            />
+            <Bar dataKey="taken" stackId="a" fill="#0d9488" name="Tomados" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="missed" stackId="a" fill="#ef4444" name="Perdidos" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="skipped" stackId="a" fill="#cbd5e1" name="Omitidos" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Tomados</p>
-          <p className="text-2xl font-bold text-green-600">{adherence.taken}</p>
-        </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Perdidos</p>
-          <p className="text-2xl font-bold text-red-600">{adherence.missed}</p>
-        </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Omitidos</p>
-          <p className="text-2xl font-bold text-gray-600">{adherence.skipped}</p>
-        </div>
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <p className="text-sm text-gray-600">Total</p>
-          <p className="text-2xl font-bold text-blue-600">{adherence.total}</p>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statCards.map((stat, i) => (
+          <div key={i} className={`${stat.bg} border ${stat.border} p-4 rounded-xl text-center`}>
+            <p className="text-xs font-medium text-gray-500">{stat.label}</p>
+            <p className={`text-xl font-bold ${stat.text} mt-1`}>{stat.value}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

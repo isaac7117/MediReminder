@@ -35,6 +35,98 @@ export interface OpenAIMedicationResult {
   confidence: 'high' | 'medium' | 'low';
 }
 
+export const getOcrSystemPrompt = (): string => {
+  return `Eres un EXPERTO FARMACÉUTICO y especialista en OCR. Debes extraer información de recetas médicas en español, incluso si la letra es difícil.
+
+REGLAS:
+1) Responde ÚNICAMENTE con JSON válido (sin markdown).
+2) NUNCA respondas "No legible" si puedes inferir.
+3) Si falta duración o dosis, usa el estándar razonable.
+4) Nombres de medicamentos en MAYÚSCULAS.
+5) Incluye forma farmacéutica si es evidente (TABLETAS, CAPSULAS, JARABE, etc.).
+
+FORMATO:
+{
+  "medications": [
+    {
+      "name": "NOMBRE COMPLETO",
+      "dosage": "cantidad y unidad",
+      "frequency": "descripción legible",
+      "frequencyValue": número,
+      "frequencyType": "daily",
+      "frequencyTimes": ["HH:MM"],
+      "duration": "X días",
+      "durationDays": número,
+      "instructions": "instrucciones completas",
+      "indication": "para qué condición"
+    }
+  ],
+  "patientName": "nombre del paciente",
+  "doctorName": "nombre del doctor",
+  "date": "fecha",
+  "diagnosis": "diagnóstico",
+  "confidence": "high"
+}`;
+};
+
+export const analyzePrescriptionTextWithOpenAI = async (ocrText: string, modelOverride?: string): Promise<OpenAIMedicationResult> => {
+  try {
+    console.log('[OpenAI] 🧠 Analizando texto OCR con modelo fine-tuned...');
+
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada');
+    }
+
+    const model = modelOverride || process.env.OPENAI_FT_MODEL_ID || 'gpt-4o-mini';
+    const trimmedText = ocrText?.slice(0, 8000) || '';
+
+    if (!trimmedText) {
+      throw new Error('Texto OCR vacío');
+    }
+
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: getOcrSystemPrompt() },
+        { role: 'user', content: `TEXTO OCR:\n${trimmedText}\n\nDevuelve solo JSON en el formato indicado.` }
+      ],
+      max_tokens: 2048,
+      temperature: 0.1,
+    });
+
+    const responseText = response.choices[0]?.message?.content || '';
+    console.log('[OpenAI] 📝 Respuesta OCR texto:', responseText.substring(0, 300));
+
+    let parsedResult: OpenAIMedicationResult;
+
+    try {
+      let cleanedResponse = responseText
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/gi, '')
+        .replace(/^\s*[\r\n]/gm, '')
+        .trim();
+
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+        parsedResult.rawText = ocrText;
+      } else {
+        throw new Error('No se encontró JSON válido en la respuesta');
+      }
+    } catch (parseError) {
+      console.error('[OpenAI] ❌ Error al parsear JSON (texto OCR):', parseError);
+      throw parseError;
+    }
+
+    parsedResult.medications = normalizeMedications(parsedResult.medications);
+    console.log('[OpenAI] ✅ Análisis OCR texto completado');
+    return parsedResult;
+  } catch (error: any) {
+    console.error('[OpenAI] ❌ Error OCR texto:', error.message);
+    throw new Error(`Error al analizar texto OCR con OpenAI: ${error.message}`);
+  }
+};
+
 export const analyzePrescriptionWithOpenAI = async (imagePath: string): Promise<OpenAIMedicationResult> => {
   try {
     console.log('[OpenAI] 🤖 Analizando receta con GPT-4 Vision...');

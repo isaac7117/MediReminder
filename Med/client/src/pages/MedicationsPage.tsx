@@ -4,7 +4,7 @@ import Navbar from '../components/common/Navbar';
 import MedicationCard from '../components/medications/MedicationCard';
 import { useMedications } from '../hooks/useMedications';
 import { useNotifications } from '../hooks/useNotifications';
-import { Plus, Scan } from 'lucide-react';
+import { Plus, Scan, Pill } from 'lucide-react';
 
 const MedicationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,8 +17,7 @@ const MedicationsPage: React.FC = () => {
   }, [filter]);
 
   const handleEdit = (medication: any) => {
-    // TODO: Implement edit page
-    showNotification('info', 'Función de edición próximamente');
+    navigate(`/medications/${medication.id}/edit`);
   };
 
   const handleDelete = async (id: string) => {
@@ -35,23 +34,27 @@ const MedicationsPage: React.FC = () => {
   return (
     <>
       <Navbar />
-      <div className="bg-gray-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Medicamentos</h1>
+      <div className="bg-medical-mesh min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-medical-dark tracking-tight">Medicamentos</h1>
+              <p className="text-sm text-gray-500 mt-1">Gestiona tu tratamiento actual</p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => navigate('/scanner')}
-                className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
+                className="btn-secondary flex items-center gap-2 text-sm"
               >
-                <Scan size={20} />
+                <Scan size={16} />
                 Escanear
               </button>
               <button
                 onClick={() => navigate('/medications/new')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
+                className="btn-primary flex items-center gap-2 text-sm"
               >
-                <Plus size={20} />
+                <Plus size={16} />
                 Agregar
               </button>
             </div>
@@ -63,10 +66,10 @@ const MedicationsPage: React.FC = () => {
               <button
                 key={status}
                 onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                   filter === status
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    ? 'bg-primary-500 text-white shadow-medical'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:bg-primary-50'
                 }`}
               >
                 {status === 'active' ? 'Activos' : 'Todos'}
@@ -76,24 +79,27 @@ const MedicationsPage: React.FC = () => {
 
           {/* Medications Grid */}
           {isLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin">
-                <div className="h-12 w-12 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+            <div className="text-center py-16">
+              <div className="inline-block">
+                <div className="h-10 w-10 border-3 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <p className="mt-4 text-gray-600">Cargando medicamentos...</p>
+              <p className="mt-4 text-sm text-gray-500">Cargando medicamentos...</p>
             </div>
           ) : medications.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <p className="text-gray-600 text-lg mb-4">No hay medicamentos</p>
+            <div className="bg-white rounded-2xl shadow-medical border border-gray-100 p-16 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+                <Pill className="text-primary-400" size={28} />
+              </div>
+              <p className="text-gray-500 text-base mb-5">No hay medicamentos registrados</p>
               <button
                 onClick={() => navigate('/scanner')}
-                className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+                className="btn-primary text-sm"
               >
                 Agregar Tu Primer Medicamento
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {medications.map(medication => (
                 <MedicationCard
                   key={medication.id}

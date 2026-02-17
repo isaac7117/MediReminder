@@ -11,26 +11,29 @@ const apiClient = axios.create({
   }
 });
 
-// Add token to requests AND debug logging
+// Agregar token a cada request
 apiClient.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('[API][Auth]', 'Token found, adding Authorization header');
-  } else {
-    console.warn('[API][Auth]', 'No token found in localStorage!');
   }
-  console.log('[API][Request]', config.method?.toUpperCase(), config.url, 'Headers:', config.headers);
   return config;
 });
 
 apiClient.interceptors.response.use(
-  (response) => {
-    console.log('[API][Response]', response.status, response.config.url);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error('[API][Error]', error.config?.url, error.response?.status, error.response?.data || error.message);
+    // Si el token expiró o es inválido, limpiar la sesión
+    if (error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+      // No limpiar sesión en rutas de auth (login/register)
+      if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') {
+        console.warn('[API] Token expirado o inválido, cerrando sesión...');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   }
 );
