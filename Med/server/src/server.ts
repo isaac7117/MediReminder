@@ -33,11 +33,14 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    if (!origin) return callback(null, true);
+    // Exact match
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow all Vercel preview URLs for the project
+    if (origin.endsWith('.vercel.app') && allowedOrigins.some(o => o.endsWith('.vercel.app'))) {
+      return callback(null, true);
     }
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true
 }));
