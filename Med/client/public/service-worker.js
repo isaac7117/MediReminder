@@ -171,7 +171,7 @@ self.addEventListener('notificationclick', (event) => {
 
           if (authToken) {
             // Llamar al API para marcar como tomado
-            const apiBase = self.location.origin;
+            const apiBase = notifData.apiBaseUrl || self.location.origin;
             const response = await fetch(`${apiBase}/api/reminders/${notifData.reminderId}/take`, {
               method: 'PUT',
               headers: {
