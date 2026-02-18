@@ -19,6 +19,7 @@ model User {
   phoneNumber   String?
   profileImage  String?
   pushSubscriptions String[] // JSON array of push subscriptions
+  timezone      String        @default("America/Mexico_City")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

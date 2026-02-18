@@ -6,7 +6,8 @@ export const authService = {
       email,
       password,
       confirmPassword,
-      fullName
+      fullName,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     return response.data;
   },
@@ -14,7 +15,8 @@ export const authService = {
   login: async (email: string, password: string) => {
     const response = await apiClient.post('/auth/login', {
       email,
-      password
+      password,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     return response.data;
   },

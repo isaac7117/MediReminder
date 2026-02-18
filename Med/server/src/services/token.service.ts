@@ -12,7 +12,8 @@ export interface TokenPayload {
 export const createUser = async (
   email: string,
   password: string,
-  fullName: string
+  fullName: string,
+  timezone?: string
 ): Promise<{ id: string; email: string; fullName: string }> => {
   const hashedPassword = await hashPassword(password);
 
@@ -20,7 +21,8 @@ export const createUser = async (
     data: {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      fullName: fullName.trim()
+      fullName: fullName.trim(),
+      timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Mexico_City'
     }
   });
 
@@ -83,6 +85,7 @@ export const updateUserProfile = async (
     phoneNumber?: string;
     dateOfBirth?: Date;
     profileImage?: string;
+    timezone?: string;
   }
 ) => {
   return prisma.user.update({

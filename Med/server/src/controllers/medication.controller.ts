@@ -26,6 +26,14 @@ export const createMedication = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    // Obtener timezone del usuario
+    const user = await prisma.user.findUnique({ where: { id: userId! }, select: { timezone: true } });
+    const timezone = user?.timezone || 'America/Mexico_City';
+
+    // Interpretar startDate/endDate como fecha local del usuario (mediodía para evitar off-by-one)
+    const parsedStartDate = new Date(`${startDate}T12:00:00Z`);
+    const parsedEndDate = endDate ? new Date(`${endDate}T12:00:00Z`) : null;
+
     const medication = await prisma.medication.create({
       data: {
         userId: userId!,
@@ -35,8 +43,8 @@ export const createMedication = async (req: Request, res: Response) => {
         frequencyValue,
         frequencyTimes: frequencyTimes || [],
         frequencyDays: frequencyDays || [],
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         isContinuous: isContinuous || false,
         instructions,
         imageUrl,
@@ -48,8 +56,8 @@ export const createMedication = async (req: Request, res: Response) => {
     await generateRemindersForMedication(
       medication.id,
       userId!,
-      new Date(startDate),
-      endDate ? new Date(endDate) : undefined
+      parsedStartDate,
+      parsedEndDate || undefined
     );
 
     res.status(201).json({
@@ -137,7 +145,7 @@ export const updateMedication = async (req: Request, res: Response) => {
         ...(frequencyValue !== undefined && { frequencyValue }),
         ...(frequencyTimes !== undefined && { frequencyTimes }),
         ...(frequencyDays !== undefined && { frequencyDays }),
-        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        ...(endDate !== undefined && { endDate: endDate ? new Date(`${endDate}T12:00:00Z`) : null }),
         ...(isContinuous !== undefined && { isContinuous }),
         ...(instructions !== undefined && { instructions }),
         ...(imageUrl !== undefined && { imageUrl }),

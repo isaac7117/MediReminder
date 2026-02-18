@@ -5,6 +5,29 @@ import { regenerateAllReminders, generateRemindersForMedication } from '../servi
 
 const prisma = new PrismaClient();
 
+/** Convierte medianoche local a UTC */
+function localMidnightToUTC(dateStr: string, timezone: string): Date {
+  const utcEstimate = new Date(`${dateStr}T00:00:00Z`);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(utcEstimate);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const localH = parseInt(getPart('hour'));
+  const localM = parseInt(getPart('minute'));
+  const localD = parseInt(getPart('day'));
+  const localMo = parseInt(getPart('month'));
+  const localY = parseInt(getPart('year'));
+  const wantedMs = utcEstimate.getTime();
+  const gotLocalMs = new Date(`${localY}-${pad(localMo)}-${pad(localD)}T${pad(localH)}:${pad(localM)}:00Z`).getTime();
+  const offsetMs = gotLocalMs - wantedMs;
+  return new Date(utcEstimate.getTime() - offsetMs);
+}
+
 export const getReminders = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -40,10 +63,19 @@ export const getTodayReminders = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Obtener timezone del usuario para calcular "hoy" correctamente
+    const user = await prisma.user.findUnique({ where: { id: userId! }, select: { timezone: true } });
+    const timezone = user?.timezone || 'America/Mexico_City';
+    
+    // Calcular inicio y fin del día en la zona horaria del usuario
+    const now = new Date();
+    const todayLocalStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    
+    // Crear medianoche local del usuario en UTC
+    const todayStart = localMidnightToUTC(todayLocalStr, timezone);
+    const tomorrow = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    const today = todayStart;
 
     const reminders = await prisma.reminder.findMany({
       where: {
@@ -185,6 +217,11 @@ export const getAdherence = async (req: Request, res: Response) => {
     if (isNaN(daysBack) || daysBack < 1 || daysBack > 365) {
       return res.status(400).json({ message: 'Parámetro days inválido (1-365)' });
     }
+
+    // Obtener timezone del usuario
+    const user = await prisma.user.findUnique({ where: { id: userId! }, select: { timezone: true } });
+    const timezone = user?.timezone || 'America/Mexico_City';
+
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
     startDate.setHours(0, 0, 0, 0);
@@ -205,10 +242,11 @@ export const getAdherence = async (req: Request, res: Response) => {
 
     const adherenceRate = total > 0 ? (taken / total) * 100 : 0;
 
-    // Group by date
+    // Group by date using user's timezone
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
     const dailyStats: Record<string, any> = {};
     reminders.forEach((reminder: any) => {
-      const date = reminder.scheduledTime.toISOString().split('T')[0];
+      const date = dateFormatter.format(new Date(reminder.scheduledTime));
       if (!dailyStats[date]) {
         dailyStats[date] = { date, taken: 0, missed: 0, skipped: 0, total: 0 };
       }

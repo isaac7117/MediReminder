@@ -4,7 +4,7 @@ import { validateEmail, validatePassword } from '../utils/validators.utils.js';
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, confirmPassword, fullName } = req.body;
+    const { email, password, confirmPassword, fullName, timezone } = req.body;
 
     if (!validateEmail(email)) {
       return res.status(400).json({ message: 'Invalid email format' });
@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Full name must be at least 2 characters' });
     }
 
-    const user = await createUser(email, password, fullName);
+    const user = await createUser(email, password, fullName, timezone);
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -40,13 +40,20 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, timezone } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
     const result = await loginUser(email, password);
+
+    // Actualizar timezone del usuario si se proporciona
+    if (timezone) {
+      try {
+        await updateUserProfile(result.user.id, { timezone });
+      } catch (e) { /* ignore */ }
+    }
 
     res.json({
       message: 'Login successful',

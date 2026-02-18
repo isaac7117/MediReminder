@@ -35,7 +35,7 @@ const MedicationFormPage: React.FC = () => {
     frequencyValue: 1,
     frequencyTimes: ['09:00'],
     frequencyDays: [],
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD in local timezone
     endDate: '',
     isContinuous: true,
     instructions: '',
@@ -61,8 +61,8 @@ const MedicationFormPage: React.FC = () => {
         frequencyValue: med.frequencyValue || 1,
         frequencyTimes: med.frequencyTimes?.length > 0 ? med.frequencyTimes : ['09:00'],
         frequencyDays: med.frequencyDays?.map(String) || [],
-        startDate: med.startDate ? new Date(med.startDate).toISOString().split('T')[0] : '',
-        endDate: med.endDate ? new Date(med.endDate).toISOString().split('T')[0] : '',
+        startDate: med.startDate ? new Date(med.startDate).toLocaleDateString('en-CA') : '',
+        endDate: med.endDate ? new Date(med.endDate).toLocaleDateString('en-CA') : '',
         isContinuous: med.isContinuous ?? true,
         instructions: med.instructions || '',
         active: med.active ?? true
@@ -133,8 +133,9 @@ const MedicationFormPage: React.FC = () => {
       const payload = {
         ...formData,
         frequencyDays: formData.frequencyDays.map(Number),
-        startDate: new Date(formData.startDate),
-        endDate: formData.endDate ? new Date(formData.endDate) : null
+        // Enviar las fechas como strings YYYY-MM-DD (el servidor las interpreta en zona del usuario)
+        startDate: formData.startDate,
+        endDate: formData.endDate || null
       };
 
       if (isEditMode && id) {

@@ -95,7 +95,9 @@ cron.schedule('* * * * *', async () => {
       const user = reminder.user;
       const med = reminder.medication;
       const scheduledTime = new Date(reminder.scheduledTime);
-      const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+      // Obtener la zona horaria del usuario para formatear la hora correctamente
+      const userTz = user.timezone || 'America/Mexico_City';
+      const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
 
       if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
         const bodyParts = [
