@@ -64,7 +64,7 @@ const ScannerPage: React.FC = () => {
     frequencyValue: 1,
     frequencyTimes: ['09:00'],
     frequencyDays: [],
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: new Date().toLocaleDateString('en-CA'),
     endDate: '',
     isContinuous: true,
     instructions: ''
@@ -116,9 +116,9 @@ const ScannerPage: React.FC = () => {
         name: med.name,
         dosage: med.dosage,
         instructions: med.instructions || '',
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: new Date().toLocaleDateString('en-CA'),
         endDate: med.durationDays 
-          ? new Date(Date.now() + med.durationDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          ? new Date(Date.now() + med.durationDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA')
           : null,
         isContinuous: false,
         frequencyType: med.frequencyType || 'daily',
@@ -167,7 +167,7 @@ const ScannerPage: React.FC = () => {
         frequencyTimes: Array.isArray(firstMed.frequencyTimes) ? firstMed.frequencyTimes : ['09:00'],
         instructions: firstMed.instructions || '',
         endDate: firstMed.durationDays 
-          ? new Date(Date.now() + firstMed.durationDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          ? new Date(Date.now() + firstMed.durationDays * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA')
           : ''
       }));
       
@@ -206,8 +206,9 @@ const ScannerPage: React.FC = () => {
     try {
       const payload = {
         ...formData,
-        startDate: new Date(formData.startDate),
-        endDate: formData.endDate ? new Date(formData.endDate) : null,
+        // Enviar fechas como strings YYYY-MM-DD
+        startDate: formData.startDate,
+        endDate: formData.endDate || null,
         frequencyDays: formData.frequencyDays || []
       };
 

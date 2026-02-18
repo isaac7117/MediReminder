@@ -30,9 +30,17 @@ export const createMedication = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId! }, select: { timezone: true } });
     const timezone = user?.timezone || 'America/Mexico_City';
 
-    // Interpretar startDate/endDate como fecha local del usuario (mediodía para evitar off-by-one)
-    const parsedStartDate = new Date(`${startDate}T12:00:00Z`);
-    const parsedEndDate = endDate ? new Date(`${endDate}T12:00:00Z`) : null;
+    // Interpretar startDate/endDate como fecha local del usuario
+    // Acepta strings "YYYY-MM-DD" o ISO strings
+    const parseDateSafe = (d: any): Date => {
+      if (!d) return new Date();
+      const str = String(d);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return new Date(`${str}T12:00:00Z`);
+      const parsed = new Date(str);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+    };
+    const parsedStartDate = parseDateSafe(startDate);
+    const parsedEndDate = endDate ? parseDateSafe(endDate) : null;
 
     const medication = await prisma.medication.create({
       data: {
@@ -145,7 +153,12 @@ export const updateMedication = async (req: Request, res: Response) => {
         ...(frequencyValue !== undefined && { frequencyValue }),
         ...(frequencyTimes !== undefined && { frequencyTimes }),
         ...(frequencyDays !== undefined && { frequencyDays }),
-        ...(endDate !== undefined && { endDate: endDate ? new Date(`${endDate}T12:00:00Z`) : null }),
+        ...(endDate !== undefined && { endDate: endDate ? (() => {
+          const s = String(endDate);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T12:00:00Z`);
+          const d = new Date(s);
+          return isNaN(d.getTime()) ? null : d;
+        })() : null }),
         ...(isContinuous !== undefined && { isContinuous }),
         ...(instructions !== undefined && { instructions }),
         ...(imageUrl !== undefined && { imageUrl }),
