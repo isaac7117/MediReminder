@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
-import { sendNotificationToSubscriptions } from './services/notification.service.js';
+import { sendNotificationToSubscriptions, sendPushNotification } from './services/notification.service.js';
 import { regenerateAllReminders, markMissedReminders } from './services/scheduler.service.js';
 import { runOcrFineTuningJob, refreshOcrTrainingJobs } from './services/ocr-training.service.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
@@ -70,18 +70,24 @@ app.get('/health', (req: Request, res: Response) => {
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
+// Track which reminders have already been notified in this server session
+// Cleared on restart — which is good: after cold start we re-check recent reminders
+const notifiedReminderIds = new Set<string>();
+
 // Cron Job: Check reminders every minute and send notifications
+// Looks back 5 minutes to catch reminders missed during server sleep/cold-start
 cron.schedule('* * * * *', async () => {
   try {
     const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60000);
     const oneMinuteLater = new Date(now.getTime() + 60000);
 
-    // Get all pending reminders for the next minute
+    // Get pending reminders from the last 5 minutes AND next 1 minute
     const reminders = await prisma.reminder.findMany({
       where: {
         status: 'pending',
         scheduledTime: {
-          gte: now,
+          gte: fiveMinutesAgo,
           lte: oneMinuteLater
         }
       },
@@ -91,11 +97,17 @@ cron.schedule('* * * * *', async () => {
       }
     });
 
-    for (const reminder of reminders) {
+    // Filter out already-notified reminders (within this session)
+    const toNotify = reminders.filter(r => !notifiedReminderIds.has(r.id));
+
+    if (toNotify.length > 0) {
+      console.log(`[Cron] 🔔 ${toNotify.length} recordatorios para notificar (${reminders.length - toNotify.length} ya enviados)`);
+    }
+
+    for (const reminder of toNotify) {
       const user = reminder.user;
       const med = reminder.medication;
       const scheduledTime = new Date(reminder.scheduledTime);
-      // Obtener la zona horaria del usuario para formatear la hora correctamente
       const userTz = user.timezone || 'America/Mexico_City';
       const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
 
@@ -108,24 +120,53 @@ cron.schedule('* * * * *', async () => {
           bodyParts.push(`📋 ${med.instructions}`);
         }
 
-        await sendNotificationToSubscriptions(
-          user.pushSubscriptions,
-          {
-            title: `Es hora de tomar: ${med.name}`,
-            body: bodyParts.join('\n'),
-            tag: `reminder-${reminder.id}`,
-            data: {
-              type: 'medication-reminder',
-              reminderId: reminder.id,
-              medicationId: med.id,
-              medicationName: med.name,
-              dosage: med.dosage,
-              instructions: med.instructions || '',
-              scheduledTime: reminder.scheduledTime.toISOString(),
-              apiBaseUrl: process.env.SERVER_URL || `http://localhost:${PORT}`
+        try {
+          const results = await Promise.allSettled(
+            user.pushSubscriptions.map((sub: string) => {
+              return sendPushNotification(sub, {
+                title: `Es hora de tomar: ${med.name}`,
+                body: bodyParts.join('\n'),
+                tag: `reminder-${reminder.id}`,
+                data: {
+                  type: 'medication-reminder',
+                  reminderId: reminder.id,
+                  medicationId: med.id,
+                  medicationName: med.name,
+                  dosage: med.dosage,
+                  instructions: med.instructions || '',
+                  scheduledTime: reminder.scheduledTime.toISOString(),
+                  apiBaseUrl: process.env.SERVER_URL || `http://localhost:${PORT}`
+                }
+              });
+            })
+          );
+
+          // Clean up expired/invalid subscriptions
+          const validSubs: string[] = [];
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              validSubs.push(user.pushSubscriptions[index]);
+            } else {
+              console.warn(`[Cron] ⚠️ Push falló para suscripción ${index}:`, (result as PromiseRejectedResult).reason?.statusCode || (result as PromiseRejectedResult).reason?.message);
             }
+          });
+
+          // Update subscriptions if any were invalid
+          if (validSubs.length < user.pushSubscriptions.length) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { pushSubscriptions: validSubs }
+            });
+            console.log(`[Cron] 🧹 Limpiadas ${user.pushSubscriptions.length - validSubs.length} suscripciones inválidas para ${user.email}`);
           }
-        );
+
+          // Mark as notified in memory to avoid re-sending within this session
+          notifiedReminderIds.add(reminder.id);
+
+          console.log(`[Cron] ✅ Notificación enviada: ${med.name} → ${user.email}`);
+        } catch (pushError: any) {
+          console.error(`[Cron] ❌ Error enviando push para ${med.name}:`, pushError.message);
+        }
       }
     }
   } catch (error) {
@@ -137,6 +178,9 @@ cron.schedule('* * * * *', async () => {
 cron.schedule('0 * * * *', async () => {
   try {
     await markMissedReminders();
+    // Clean up notified set — remove entries older than 10 minutes to prevent memory leak
+    // Since we can't track timestamps in a Set, just clear it every hour; the 5-min window handles re-sends
+    notifiedReminderIds.clear();
   } catch (error) {
     console.error('Error in missed reminder cron job:', error);
   }
@@ -184,10 +228,35 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
+// Keep-alive: self-ping every 10 minutes to prevent Render free tier from sleeping
+cron.schedule('*/10 * * * *', async () => {
+  const serverUrl = process.env.SERVER_URL || process.env.RENDER_EXTERNAL_URL;
+  if (!serverUrl || process.env.NODE_ENV !== 'production') return;
+  try {
+    const res = await fetch(`${serverUrl}/health`);
+    console.log(`[Keep-alive] ✅ Self-ping → ${res.status}`);
+  } catch (err: any) {
+    console.error(`[Keep-alive] ❌ Self-ping failed:`, err.message);
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // On startup: regenerate reminders in case server was down (cold start catch-up)
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(async () => {
+      try {
+        console.log('[Startup] 🔄 Cold-start: regenerando recordatorios...');
+        await regenerateAllReminders();
+        console.log('[Startup] ✅ Recordatorios regenerados tras cold start');
+      } catch (error) {
+        console.error('[Startup] Error regenerando recordatorios:', error);
+      }
+    }, 5000); // Wait 5s for DB connection to be ready
+  }
 });
 
 // Graceful shutdown

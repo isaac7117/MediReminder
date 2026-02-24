@@ -17,6 +17,20 @@ import ScannerPage from './pages/ScannerPage';
 import AdminOcrPage from './pages/AdminOcrPage';
 
 function App() {
+  // Keep-alive: ping server every 5 minutes to prevent Render free tier sleep
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (!apiUrl) return; // Only in production (when VITE_API_URL is set)
+    
+    const ping = () => {
+      fetch(`${apiUrl.replace('/api', '')}/health`).catch(() => {});
+    };
+    
+    ping(); // Immediate ping on app load (wakes server if sleeping)
+    const interval = setInterval(ping, 5 * 60 * 1000); // Every 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // Registrar Service Worker para push notifications y PWA
     if ('serviceWorker' in navigator) {
