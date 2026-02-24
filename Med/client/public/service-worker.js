@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v2';
+const CACHE_NAME = 'medi-reminder-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -98,6 +98,8 @@ self.addEventListener('push', (event) => {
     data = { title: 'MediReminder', body: event.data ? event.data.text() : 'Tienes una notificación' };
   }
 
+  console.log('[SW] Push recibido:', JSON.stringify(data).substring(0, 200));
+
   const notifData = data.data || {};
   
   // Construir cuerpo con detalles del medicamento
@@ -116,24 +118,28 @@ self.addEventListener('push', (event) => {
     body = parts.join('\n');
   }
 
+  // Construir acciones: los botones de la notificación
+  const actions = [];
+  if (notifData.reminderId) {
+    actions.push(
+      { action: 'take', title: '✅ Tomar' },
+      { action: 'snooze', title: '⏰ Posponer' }
+    );
+  }
+
   const options = {
     body: body,
     icon: data.icon || '/icons/icon-192x192.png',
-    badge: data.badge || '/icons/icon-192x192.png',
+    badge: data.badge || '/icons/badge-72x72.png',
     tag: data.tag || 'medication-reminder',
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
-    actions: [],
-    data: notifData
+    data: notifData,
+    // Actions MUST be set directly in showNotification, not mutated after
+    actions: actions
   };
 
-  // Si es un recordatorio de medicamento, agregar botón "Aceptar" (tomar)
-  if (notifData.reminderId) {
-    options.actions = [
-      { action: 'take', title: '✅ Aceptar' },
-      { action: 'snooze', title: '⏰ Posponer' }
-    ];
-  }
+  console.log('[SW] Mostrando notificación con', actions.length, 'acciones');
 
   const title = data.title || '💊 MediReminder';
 
