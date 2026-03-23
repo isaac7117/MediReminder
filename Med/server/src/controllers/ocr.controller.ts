@@ -28,7 +28,7 @@ export const scanPrescription = async (req: Request, res: Response) => {
     const userId = req.userId;
 
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      return res.status(400).json({ message: 'Archivo no enviado' });
     }
 
     const imagePath = req.file.path;

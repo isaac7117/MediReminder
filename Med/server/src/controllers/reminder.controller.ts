@@ -142,7 +142,7 @@ export const takeReminder = async (req: Request, res: Response) => {
     });
 
     if (!reminder) {
-      return res.status(404).json({ message: 'Reminder not found' });
+      return res.status(404).json({ message: 'Recordatorio no encontrado' });
     }
 
     if (reminder.status !== 'pending') {
@@ -162,7 +162,7 @@ export const takeReminder = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: 'Reminder marked as taken',
+      message: 'Recordatorio marcado como tomado',
       reminder: updated
     });
   } catch (error: any) {
@@ -181,7 +181,7 @@ export const skipReminder = async (req: Request, res: Response) => {
     });
 
     if (!reminder) {
-      return res.status(404).json({ message: 'Reminder not found' });
+      return res.status(404).json({ message: 'Recordatorio no encontrado' });
     }
 
     if (reminder.status !== 'pending') {
@@ -200,7 +200,7 @@ export const skipReminder = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: 'Reminder skipped',
+      message: 'Recordatorio omitido',
       reminder: updated
     });
   } catch (error: any) {

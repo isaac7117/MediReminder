@@ -7,32 +7,32 @@ export const register = async (req: Request, res: Response) => {
     const { email, password, confirmPassword, fullName, timezone } = req.body;
 
     if (!validateEmail(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
+      return res.status(400).json({ message: 'Formato de correo inválido' });
     }
 
     if (!validatePassword(password)) {
       return res.status(400).json({
-        message: 'Password must be at least 8 characters with uppercase, lowercase, and numbers'
+        message: 'La contraseña debe tener al menos 8 caracteres con mayúscula, minúscula y números'
       });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match' });
+      return res.status(400).json({ message: 'Las contraseñas no coinciden' });
     }
 
     if (!fullName || fullName.length < 2) {
-      return res.status(400).json({ message: 'Full name must be at least 2 characters' });
+      return res.status(400).json({ message: 'El nombre completo debe tener al menos 2 caracteres' });
     }
 
     const user = await createUser(email, password, fullName, timezone);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'Usuario registrado exitosamente',
       user
     });
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return res.status(409).json({ message: 'Email already exists' });
+      return res.status(409).json({ message: 'El correo ya existe' });
     }
     res.status(500).json({ message: error.message });
   }
@@ -43,7 +43,7 @@ export const login = async (req: Request, res: Response) => {
     const { email, password, timezone } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+      return res.status(400).json({ message: 'Correo y contraseña son requeridos' });
     }
 
     const result = await loginUser(email, password);
@@ -56,7 +56,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     res.json({
-      message: 'Login successful',
+      message: 'Inicio de sesión exitoso',
       ...result
     });
   } catch (error: any) {

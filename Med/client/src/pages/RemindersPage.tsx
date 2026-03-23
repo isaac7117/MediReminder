@@ -279,7 +279,7 @@ const RemindersPage: React.FC = () => {
                 <div className="flex flex-wrap gap-3 text-xs text-gray-400">
                   <span className="flex items-center gap-1">
                     {notifStatus.details.notificationAPI ? <CheckCircle size={12} className="text-secondary-500" /> : <Info size={12} className="text-red-400" />}
-                    Notification API
+                    API de Notificaciones
                   </span>
                   <span className="flex items-center gap-1">
                     {notifStatus.details.serviceWorker ? <CheckCircle size={12} className="text-secondary-500" /> : <Info size={12} className="text-amber-400" />}
@@ -287,7 +287,7 @@ const RemindersPage: React.FC = () => {
                   </span>
                   <span className="flex items-center gap-1">
                     {notifStatus.details.pushManager ? <CheckCircle size={12} className="text-secondary-500" /> : <Info size={12} className="text-amber-400" />}
-                    Push Manager
+                    Gestor de Push
                   </span>
                   <span className="flex items-center gap-1">
                     Permiso: <strong className="text-gray-600">{notifStatus.permission}</strong>

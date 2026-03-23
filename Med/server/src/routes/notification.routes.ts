@@ -12,7 +12,7 @@ router.post('/subscribe', authMiddleware, async (req: Request, res: Response) =>
     const { subscription } = req.body;
 
     if (!subscription) {
-      return res.status(400).json({ message: 'Subscription required' });
+      return res.status(400).json({ message: 'Suscripción requerida' });
     }
 
     const user = await prisma.user.findUnique({
@@ -20,7 +20,7 @@ router.post('/subscribe', authMiddleware, async (req: Request, res: Response) =>
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
     const subscriptions = user.pushSubscriptions || [];
@@ -38,7 +38,7 @@ router.post('/subscribe', authMiddleware, async (req: Request, res: Response) =>
       });
     }
 
-    res.json({ message: 'Successfully subscribed to push notifications' });
+    res.json({ message: 'Suscrito exitosamente a notificaciones push' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -51,7 +51,7 @@ router.post('/unsubscribe', authMiddleware, async (req: Request, res: Response) 
     const { subscription } = req.body;
 
     if (!subscription) {
-      return res.status(400).json({ message: 'Subscription required' });
+      return res.status(400).json({ message: 'Suscripción requerida' });
     }
 
     const user = await prisma.user.findUnique({
@@ -59,7 +59,7 @@ router.post('/unsubscribe', authMiddleware, async (req: Request, res: Response) 
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
     const subscriptions = (user.pushSubscriptions || []).filter(
@@ -73,7 +73,7 @@ router.post('/unsubscribe', authMiddleware, async (req: Request, res: Response) 
       }
     });
 
-    res.json({ message: 'Successfully unsubscribed from push notifications' });
+    res.json({ message: 'Desuscrito exitosamente de notificaciones push' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

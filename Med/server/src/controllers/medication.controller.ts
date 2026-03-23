@@ -23,7 +23,7 @@ export const createMedication = async (req: Request, res: Response) => {
     } = req.body;
 
     if (!name || !dosage || !frequencyType || !frequencyValue) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ message: 'Campos requeridos faltantes' });
     }
 
     // Obtener timezone del usuario
@@ -69,7 +69,7 @@ export const createMedication = async (req: Request, res: Response) => {
     );
 
     res.status(201).json({
-      message: 'Medication created successfully',
+      message: 'Medicamento creado exitosamente',
       medication
     });
   } catch (error: any) {
@@ -108,7 +108,7 @@ export const getMedicationById = async (req: Request, res: Response) => {
     });
 
     if (!medication) {
-      return res.status(404).json({ message: 'Medication not found' });
+      return res.status(404).json({ message: 'Medicamento no encontrado' });
     }
 
     res.json({ medication });
@@ -185,7 +185,7 @@ export const updateMedication = async (req: Request, res: Response) => {
     }
 
     res.json({
-      message: 'Medication updated successfully',
+      message: 'Medicamento actualizado exitosamente',
       medication: updated
     });
   } catch (error: any) {
@@ -203,14 +203,14 @@ export const deleteMedication = async (req: Request, res: Response) => {
     });
 
     if (!medication) {
-      return res.status(404).json({ message: 'Medication not found' });
+      return res.status(404).json({ message: 'Medicamento no encontrado' });
     }
 
     await prisma.medication.delete({
       where: { id }
     });
 
-    res.json({ message: 'Medication deleted successfully' });
+    res.json({ message: 'Medicamento eliminado exitosamente' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
