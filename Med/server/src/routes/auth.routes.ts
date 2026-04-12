@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getCurrentUser, updateProfile } from '../controllers/auth.controller.js';
+import { register, login, googleAuth, getCurrentUser, updateProfile } from '../controllers/auth.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { validationMiddleware } from '../middleware/validation.middleware.js';
 import { validateEmail, validatePassword } from '../utils/validators.utils.js';
@@ -23,6 +23,8 @@ router.post('/login',
   ]),
   login
 );
+
+router.post('/google', googleAuth);
 
 router.get('/me', authMiddleware, getCurrentUser);
 

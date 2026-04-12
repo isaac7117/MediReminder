@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
-import { createUser, loginUser, getUserById, updateUserProfile } from '../services/token.service.js';
+import { OAuth2Client } from 'google-auth-library';
+import { createUser, loginUser, getUserById, updateUserProfile, findOrCreateGoogleUser } from '../services/token.service.js';
 import { validateEmail, validatePassword } from '../utils/validators.utils.js';
+
+const googleClient = new OAuth2Client();
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -61,6 +64,45 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     res.status(401).json({ message: error.message });
+  }
+};
+
+export const googleAuth = async (req: Request, res: Response) => {
+  try {
+    const { credential, timezone } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ message: 'Token de Google requerido' });
+    }
+
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      return res.status(500).json({ message: 'Google OAuth no está configurado en el servidor' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: googleClientId
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(401).json({ message: 'Token de Google inválido' });
+    }
+
+    const result = await findOrCreateGoogleUser(
+      payload.email,
+      payload.name || payload.email.split('@')[0],
+      timezone
+    );
+
+    res.json({
+      message: 'Inicio de sesión con Google exitoso',
+      ...result
+    });
+  } catch (error: any) {
+    console.error('[Auth] Error en Google OAuth:', error.message);
+    res.status(401).json({ message: 'Error al verificar con Google' });
   }
 };
 

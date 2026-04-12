@@ -1,5 +1,9 @@
 import apiClient from './api';
 
+const getApiErrorMessage = (error: any, fallback: string): string => {
+  return error?.response?.data?.message || fallback;
+};
+
 export const authService = {
   register: async (email: string, password: string, confirmPassword: string, fullName: string) => {
     const response = await apiClient.post('/auth/register', {
@@ -13,12 +17,17 @@ export const authService = {
   },
 
   login: async (email: string, password: string) => {
-    const response = await apiClient.post('/auth/login', {
-      email,
-      password,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
-    return response.data;
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const response = await apiClient.post('/auth/login', {
+        email: normalizedEmail,
+        password,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getApiErrorMessage(error, 'No se pudo iniciar sesión'));
+    }
   },
 
   getCurrentUser: async () => {
@@ -34,5 +43,17 @@ export const authService = {
   logout: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+  },
+
+  googleLogin: async (credential: string) => {
+    try {
+      const response = await apiClient.post('/auth/google', {
+        credential,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getApiErrorMessage(error, 'No se pudo iniciar sesión con Google'));
+    }
   }
 };

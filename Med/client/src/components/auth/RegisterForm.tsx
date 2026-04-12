@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
 import { validateEmail, validatePassword } from '../../utils/validators';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 const RegisterForm: React.FC = () => {
   const navigate = useNavigate();
-  const { register: authRegister, isLoading } = useAuth();
+  const { register: authRegister, googleLogin, isLoading } = useAuth();
   const { showNotification } = useNotifications();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       email: '',
@@ -41,6 +44,16 @@ const RegisterForm: React.FC = () => {
       navigate('/dashboard');
     } catch (error: any) {
       showNotification('error', error.response?.data?.message || 'Error al registrarse');
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      await googleLogin(credentialResponse.credential);
+      showNotification('success', '¡Cuenta creada con Google!');
+      navigate('/dashboard');
+    } catch (error: any) {
+      showNotification('error', error.message || 'Error al registrarse con Google');
     }
   };
 
@@ -77,10 +90,18 @@ const RegisterForm: React.FC = () => {
           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('password', { required: 'La contraseña es requerida' })}
-            type="password"
-            className="input-field pl-11"
+            type={showPassword ? 'text' : 'password'}
+            className="input-field pl-11 pr-12"
             placeholder="••••••••"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
         </div>
         {errors.password && <p className="text-red-500 text-xs mt-1.5">{errors.password.message}</p>}
         <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary-50/60 border border-primary-100">
@@ -95,10 +116,18 @@ const RegisterForm: React.FC = () => {
           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             {...register('confirmPassword', { required: 'Por favor confirma tu contraseña' })}
-            type="password"
-            className="input-field pl-11"
+            type={showConfirmPassword ? 'text' : 'password'}
+            className="input-field pl-11 pr-12"
             placeholder="••••••••"
           />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword((prev) => !prev)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
         </div>
         {errors.confirmPassword && <p className="text-red-500 text-xs mt-1.5">{errors.confirmPassword.message}</p>}
       </div>
@@ -110,6 +139,25 @@ const RegisterForm: React.FC = () => {
       >
         {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
       </button>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200"></div>
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-white px-3 text-gray-400">o regístrate con</span>
+        </div>
+      </div>
+
+      <div className="flex justify-center">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => showNotification('error', 'Error al conectar con Google')}
+          text="signup_with"
+          shape="rectangular"
+          width={350}
+        />
+      </div>
     </form>
   );
 };
