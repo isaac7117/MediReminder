@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckCircle, XCircle, SkipForward, Clock } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateHelpers';
 import type { Reminder } from '../../types/reminder.types';
-import { STATUS_COLORS } from '../../utils/constants';
+import { STATUS_COLORS, STATUS_LABELS } from '../../utils/constants';
 
 interface ReminderCardProps {
   reminder: Reminder;
@@ -44,7 +44,7 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
           </div>
         </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-lg border ${statusColor}`}>
-          {reminder.status}
+          {STATUS_LABELS[reminder.status] || reminder.status}
         </span>
       </div>
 

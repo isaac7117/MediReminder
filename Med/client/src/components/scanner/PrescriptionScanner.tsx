@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Loader, CheckCircle, FileImage, Trash2, Send, Cpu } from 'lucide-react';
+import { Upload, Loader, CheckCircle, FileImage, Trash2, Cpu, Pencil } from 'lucide-react';
 import { ocrService } from '../../services/ocr.service';
 import { autoMedicationService } from '../../services/auto-medication.service';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -15,6 +15,14 @@ interface OCRResult {
   medicationCount?: number;
 }
 
+interface FeedbackMedication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
 interface PrescriptionScannerProps {
   onResultReceived: (result: OCRResult) => void;
   onAutoCreated?: (medications: any) => void;
@@ -26,7 +34,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
   const [preview, setPreview] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<OCRResult | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [feedbackJson, setFeedbackJson] = useState<string>('');
+  const [feedbackMeds, setFeedbackMeds] = useState<FeedbackMedication[]>([]);
   const [feedbackConsent, setFeedbackConsent] = useState(false);
   const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
@@ -61,15 +69,15 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
       if (response && response.data) {
         console.log('[OCR] Data:', response.data);
         setScanResult(response.data);
-        const feedbackPayload = {
-          medications: response.data.medications || [],
-          patientName: response.data.patientName || '',
-          doctorName: response.data.doctorName || '',
-          date: response.data.date || '',
-          diagnosis: response.data.diagnosis || '',
-          confidence: response.data.confidence || 'medium'
-        };
-        setFeedbackJson(JSON.stringify(feedbackPayload, null, 2));
+        // Populate editable feedback cards from medications
+        const meds: FeedbackMedication[] = (response.data.medications || []).map((m: any) => ({
+          name: m.name || '',
+          dosage: m.dosage || '',
+          frequency: m.frequency || '',
+          duration: m.duration || '',
+          instructions: m.instructions || ''
+        }));
+        setFeedbackMeds(meds);
         setFeedbackConsent(false);
         setFeedbackError(null);
         onResultReceived(response.data);
@@ -117,7 +125,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
   const handleClear = () => {
     setPreview(null);
     setScanResult(null);
-    setFeedbackJson('');
+    setFeedbackMeds([]);
     setFeedbackConsent(false);
     setFeedbackError(null);
   };
@@ -180,7 +188,14 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
     setFeedbackError(null);
 
     try {
-      const correctedOutput = JSON.parse(feedbackJson || '{}');
+      const correctedOutput = {
+        medications: feedbackMeds,
+        patientName: (scanResult as any).patientName || '',
+        doctorName: (scanResult as any).doctorName || '',
+        date: (scanResult as any).date || '',
+        diagnosis: (scanResult as any).diagnosis || '',
+        confidence: (scanResult as any).confidence || 'medium'
+      };
       await ocrService.submitFeedback({
         rawText: scanResult.rawText || '',
         modelOutput: scanResult,
@@ -201,6 +216,10 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
     }
   };
 
+  const handleFeedbackMedChange = (index: number, field: keyof FeedbackMedication, value: string) => {
+    setFeedbackMeds(prev => prev.map((med, i) => i === index ? { ...med, [field]: value } : med));
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-medical border border-gray-100 p-6 lg:p-8">
       <div className="text-center mb-6">
@@ -208,7 +227,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
           <Cpu className="text-primary-600" size={26} />
         </div>
         <h3 className="text-xl font-bold text-medical-dark mb-1">Escanear Receta</h3>
-        <p className="text-sm text-gray-500">Sube una imagen de tu receta para análisis automático con IA</p>
+        <p className="text-sm text-gray-500">Sube una imagen de tu receta para análisis automático</p>
       </div>
 
       <div className="max-w-md mx-auto">
@@ -240,7 +259,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
                     <Loader className="animate-spin text-primary-600" size={32} />
                   </div>
                   <p className="font-semibold text-medical-dark">Procesando imagen...</p>
-                  <p className="text-xs text-gray-400 mt-2">Analizando con inteligencia artificial</p>
+                  <p className="text-xs text-gray-400 mt-2">Analizando la receta...</p>
                   <div className="mt-4 mx-auto w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-primary-400 to-secondary-400 rounded-full animate-shimmer bg-[length:200%_100%]" />
                   </div>
@@ -346,18 +365,59 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
             {/* Feedback section */}
             <div className="mt-4 bg-white rounded-xl p-4 border border-gray-100">
               <h5 className="font-semibold text-medical-dark mb-1.5 text-sm flex items-center gap-1.5">
-                <Send size={14} className="text-primary-500" />
-                Ayúdanos a mejorar el OCR
+                <Pencil size={14} className="text-primary-500" />
+                Ayúdanos a mejorar
               </h5>
               <p className="text-xs text-gray-400 mb-3">
-                Corrige el JSON si es necesario y envíalo con tu consentimiento.
+                Si algún dato fue detectado incorrectamente, corrígelo aquí y envía tus correcciones.
               </p>
 
-              <textarea
-                value={feedbackJson}
-                onChange={(e) => setFeedbackJson(e.target.value)}
-                className="w-full h-36 text-xs font-mono p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-300 bg-gray-50 transition-all"
-              />
+              <div className="space-y-3 max-h-72 overflow-y-auto">
+                {feedbackMeds.map((med, idx) => (
+                  <div key={idx} className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                    <p className="text-xs font-semibold text-primary-700">Medicamento {idx + 1}</p>
+                    <input
+                      type="text"
+                      value={med.name}
+                      onChange={(e) => handleFeedbackMedChange(idx, 'name', e.target.value)}
+                      placeholder="Nombre"
+                      className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={med.dosage}
+                        onChange={(e) => handleFeedbackMedChange(idx, 'dosage', e.target.value)}
+                        placeholder="Dosis"
+                        className="text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={med.frequency}
+                        onChange={(e) => handleFeedbackMedChange(idx, 'frequency', e.target.value)}
+                        placeholder="Frecuencia"
+                        className="text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={med.duration}
+                        onChange={(e) => handleFeedbackMedChange(idx, 'duration', e.target.value)}
+                        placeholder="Duración"
+                        className="text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={med.instructions}
+                        onChange={(e) => handleFeedbackMedChange(idx, 'instructions', e.target.value)}
+                        placeholder="Instrucciones"
+                        className="text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <label className="flex items-center gap-2 text-xs text-gray-600 mt-3 cursor-pointer">
                 <input

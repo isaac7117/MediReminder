@@ -335,7 +335,7 @@ const RemindersPage: React.FC = () => {
               <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Calendar size={24} className="text-gray-400" />
               </div>
-              <p className="text-gray-500">No se encontraron {filter === 'all' ? '' : filter} recordatorios</p>
+              <p className="text-gray-500">No se encontraron {filter === 'all' ? '' : filterLabels[filter]?.toLowerCase() + ' '} recordatorios</p>
             </div>
           ) : (
             <div className="space-y-3">

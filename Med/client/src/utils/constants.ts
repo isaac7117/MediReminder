@@ -28,4 +28,11 @@ export const STATUS_COLORS = {
   skipped: 'bg-gray-100 text-gray-800 border-gray-300'
 };
 
+export const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  taken: 'Tomado',
+  missed: 'Perdido',
+  skipped: 'Omitido'
+};
+
 export const API_TIMEOUT = 30000; // 30 seconds

@@ -171,7 +171,7 @@ const ScannerPage: React.FC = () => {
           : ''
       }));
       
-      showNotification('success', ` ${result.medicationCount || result.medications.length} medicamento(s) detectado(s) con Gemini AI`);
+      showNotification('success', `${result.medicationCount || result.medications.length} medicamento(s) detectado(s)`);
     } else {
       showNotification('info', 'Por favor revisa y confirma la información extraída');
     }
@@ -258,7 +258,7 @@ const ScannerPage: React.FC = () => {
                     <div className="p-2 bg-white rounded-xl shadow-sm">
                       <Wand2 className="text-primary-600" size={20} />
                     </div>
-                    <h3 className="text-sm font-bold text-primary-900">Gemini detectó {geminiResult.medications.length} medicamento(s)</h3>
+                    <h3 className="text-sm font-bold text-primary-900">Se detectaron {geminiResult.medications.length} medicamento(s)</h3>
                   </div>
 
                   {/* Información de la receta */}

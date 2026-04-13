@@ -74,103 +74,114 @@ app.use(errorMiddleware);
 // Cleared on restart — which is good: after cold start we re-check recent reminders
 const notifiedReminderIds = new Set<string>();
 
+/**
+ * Sends push notifications for pending reminders within a time window.
+ * Shared by the cron job and the cold-start catch-up.
+ */
+async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinutes: number) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - lookbackMinutes * 60000);
+  const windowEnd = new Date(now.getTime() + lookaheadMinutes * 60000);
+
+  const reminders = await prisma.reminder.findMany({
+    where: {
+      status: 'pending',
+      scheduledTime: {
+        gte: windowStart,
+        lte: windowEnd
+      }
+    },
+    include: {
+      medication: true,
+      user: true
+    }
+  });
+
+  const toNotify = reminders.filter(r => !notifiedReminderIds.has(r.id));
+
+  if (toNotify.length > 0) {
+    console.log(`[Cron] 🔔 ${toNotify.length} recordatorios para notificar (ventana: -${lookbackMinutes}min / +${lookaheadMinutes}min)`);
+  }
+
+  for (const reminder of toNotify) {
+    const user = reminder.user;
+    const med = reminder.medication;
+    const scheduledTime = new Date(reminder.scheduledTime);
+    const userTz = user.timezone || 'America/Mexico_City';
+    const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
+
+    if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
+      const bodyParts = [
+        `💊 ${med.dosage}`,
+        `🕐 Hora programada: ${timeStr}`,
+      ];
+      if (med.instructions) {
+        bodyParts.push(`📋 ${med.instructions}`);
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          user.pushSubscriptions.map((sub: string) => {
+            return sendPushNotification(sub, {
+              title: `Es hora de tomar: ${med.name}`,
+              body: bodyParts.join('\n'),
+              tag: `reminder-${reminder.id}`,
+              data: {
+                type: 'medication-reminder',
+                reminderId: reminder.id,
+                medicationId: med.id,
+                medicationName: med.name,
+                dosage: med.dosage,
+                instructions: med.instructions || '',
+                scheduledTime: reminder.scheduledTime.toISOString(),
+                apiBaseUrl: process.env.SERVER_URL || `http://localhost:${PORT}`
+              }
+            });
+          })
+        );
+
+        // Clean up expired/invalid subscriptions
+        const validSubs: string[] = [];
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            validSubs.push(user.pushSubscriptions[index]);
+          } else {
+            console.warn(`[Cron] ⚠️ Push falló para suscripción ${index}:`, (result as PromiseRejectedResult).reason?.statusCode || (result as PromiseRejectedResult).reason?.message);
+          }
+        });
+
+        // Update subscriptions if any were invalid
+        if (validSubs.length < user.pushSubscriptions.length) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { pushSubscriptions: validSubs }
+          });
+          console.log(`[Cron] 🧹 Limpiadas ${user.pushSubscriptions.length - validSubs.length} suscripciones inválidas para ${user.email}`);
+        }
+
+        // Mark as notified in memory to avoid re-sending within this session
+        notifiedReminderIds.add(reminder.id);
+
+        console.log(`[Cron] ✅ Notificación enviada: ${med.name} → ${user.email}`);
+      } catch (pushError: any) {
+        console.error(`[Cron] ❌ Error enviando push para ${med.name}:`, pushError.message);
+      }
+    } else {
+      // Mark as notified even without subs to avoid re-checking
+      notifiedReminderIds.add(reminder.id);
+    }
+  }
+
+  return toNotify.length;
+}
+
 // Cron Job: Check reminders every minute and send notifications
-// Looks back 5 minutes to catch reminders missed during server sleep/cold-start
+// Looks back 30 minutes to cover Render free tier cold-start gaps
 cron.schedule('* * * * *', async () => {
   try {
-    const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60000);
-    const oneMinuteLater = new Date(now.getTime() + 60000);
-
-    // Get pending reminders from the last 5 minutes AND next 1 minute
-    const reminders = await prisma.reminder.findMany({
-      where: {
-        status: 'pending',
-        scheduledTime: {
-          gte: fiveMinutesAgo,
-          lte: oneMinuteLater
-        }
-      },
-      include: {
-        medication: true,
-        user: true
-      }
-    });
-
-    // Filter out already-notified reminders (within this session)
-    const toNotify = reminders.filter(r => !notifiedReminderIds.has(r.id));
-
-    if (toNotify.length > 0) {
-      console.log(`[Cron] 🔔 ${toNotify.length} recordatorios para notificar (${reminders.length - toNotify.length} ya enviados)`);
-    }
-
-    for (const reminder of toNotify) {
-      const user = reminder.user;
-      const med = reminder.medication;
-      const scheduledTime = new Date(reminder.scheduledTime);
-      const userTz = user.timezone || 'America/Mexico_City';
-      const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
-
-      if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
-        const bodyParts = [
-          `💊 ${med.dosage}`,
-          `🕐 Hora programada: ${timeStr}`,
-        ];
-        if (med.instructions) {
-          bodyParts.push(`📋 ${med.instructions}`);
-        }
-
-        try {
-          const results = await Promise.allSettled(
-            user.pushSubscriptions.map((sub: string) => {
-              return sendPushNotification(sub, {
-                title: `Es hora de tomar: ${med.name}`,
-                body: bodyParts.join('\n'),
-                tag: `reminder-${reminder.id}`,
-                data: {
-                  type: 'medication-reminder',
-                  reminderId: reminder.id,
-                  medicationId: med.id,
-                  medicationName: med.name,
-                  dosage: med.dosage,
-                  instructions: med.instructions || '',
-                  scheduledTime: reminder.scheduledTime.toISOString(),
-                  apiBaseUrl: process.env.SERVER_URL || `http://localhost:${PORT}`
-                }
-              });
-            })
-          );
-
-          // Clean up expired/invalid subscriptions
-          const validSubs: string[] = [];
-          results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-              validSubs.push(user.pushSubscriptions[index]);
-            } else {
-              console.warn(`[Cron] ⚠️ Push falló para suscripción ${index}:`, (result as PromiseRejectedResult).reason?.statusCode || (result as PromiseRejectedResult).reason?.message);
-            }
-          });
-
-          // Update subscriptions if any were invalid
-          if (validSubs.length < user.pushSubscriptions.length) {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { pushSubscriptions: validSubs }
-            });
-            console.log(`[Cron] 🧹 Limpiadas ${user.pushSubscriptions.length - validSubs.length} suscripciones inválidas para ${user.email}`);
-          }
-
-          // Mark as notified in memory to avoid re-sending within this session
-          notifiedReminderIds.add(reminder.id);
-
-          console.log(`[Cron] ✅ Notificación enviada: ${med.name} → ${user.email}`);
-        } catch (pushError: any) {
-          console.error(`[Cron] ❌ Error enviando push para ${med.name}:`, pushError.message);
-        }
-      }
-    }
+    await sendPendingNotifications(5, 1);
   } catch (error) {
-    console.error('Error in reminder cron job:', error);
+    console.error('[Cron] Error in reminder notification job:', error);
   }
 });
 
@@ -228,32 +239,25 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
-// Keep-alive: self-ping every 10 minutes to prevent Render free tier from sleeping
-cron.schedule('*/10 * * * *', async () => {
-  const serverUrl = process.env.SERVER_URL || process.env.RENDER_EXTERNAL_URL;
-  if (!serverUrl || process.env.NODE_ENV !== 'production') return;
-  try {
-    const res = await fetch(`${serverUrl}/health`);
-    console.log(`[Keep-alive] ✅ Self-ping → ${res.status}`);
-  } catch (err: any) {
-    console.error(`[Keep-alive] ❌ Self-ping failed:`, err.message);
-  }
-});
-
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
-  // On startup: regenerate reminders in case server was down (cold start catch-up)
+  // On startup: regenerate reminders AND send missed notifications (cold start catch-up)
   if (process.env.NODE_ENV === 'production') {
     setTimeout(async () => {
       try {
         console.log('[Startup] 🔄 Cold-start: regenerando recordatorios...');
         await regenerateAllReminders();
         console.log('[Startup] ✅ Recordatorios regenerados tras cold start');
+
+        // Send notifications for any reminders missed during redeploy (up to 30 min back)
+        console.log('[Startup] 🔔 Enviando notificaciones pendientes tras reinicio...');
+        const sent = await sendPendingNotifications(30, 5);
+        console.log(`[Startup] ✅ Catch-up completado: ${sent} notificaciones enviadas`);
       } catch (error) {
-        console.error('[Startup] Error regenerando recordatorios:', error);
+        console.error('[Startup] Error en cold-start catch-up:', error);
       }
     }, 5000); // Wait 5s for DB connection to be ready
   }
