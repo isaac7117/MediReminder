@@ -66,6 +66,46 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', timestamp: new Date() });
 });
 
+// Notification diagnostics (no auth for debugging)
+app.get('/api/notifications/diagnostics', async (req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 60 * 60000); // 1 hour back
+    const windowEnd = new Date(now.getTime() + 60 * 60000);   // 1 hour ahead
+
+    const pendingReminders = await prisma.reminder.findMany({
+      where: {
+        status: 'pending',
+        scheduledTime: { gte: windowStart, lte: windowEnd }
+      },
+      include: { medication: { select: { name: true } }, user: { select: { email: true, pushSubscriptions: true, timezone: true } } },
+      take: 20
+    });
+
+    const totalPending = await prisma.reminder.count({ where: { status: 'pending' } });
+    const totalActive = await prisma.medication.count({ where: { active: true } });
+
+    res.json({
+      serverTime: now.toISOString(),
+      notifiedIdsCount: notifiedReminderIds.size,
+      vapidConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+      totalPendingReminders: totalPending,
+      totalActiveMedications: totalActive,
+      remindersInWindow: pendingReminders.map(r => ({
+        id: r.id,
+        medication: r.medication.name,
+        scheduledTime: r.scheduledTime.toISOString(),
+        userEmail: r.user.email,
+        userTimezone: r.user.timezone,
+        pushSubscriptions: r.user.pushSubscriptions?.length || 0,
+        alreadyNotified: notifiedReminderIds.has(r.id),
+      }))
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Error handling
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
@@ -99,8 +139,17 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
 
   const toNotify = reminders.filter(r => !notifiedReminderIds.has(r.id));
 
+  // Log every 5 minutes even if nothing to send, for debugging
+  const minuteMark = now.getMinutes();
+  if (minuteMark % 5 === 0 && reminders.length === 0 && toNotify.length === 0) {
+    console.log(`[Cron] 🔍 Ventana ${windowStart.toISOString()} → ${windowEnd.toISOString()} | 0 recordatorios pendientes | notifiedIds: ${notifiedReminderIds.size}`);
+  }
+
   if (toNotify.length > 0) {
     console.log(`[Cron] 🔔 ${toNotify.length} recordatorios para notificar (ventana: -${lookbackMinutes}min / +${lookaheadMinutes}min)`);
+    toNotify.forEach(r => {
+      console.log(`[Cron]   → ${r.medication.name} | scheduledTime: ${r.scheduledTime.toISOString()} | user: ${r.user.email} | subs: ${r.user.pushSubscriptions?.length || 0}`);
+    });
   }
 
   for (const reminder of toNotify) {
@@ -176,10 +225,12 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
 }
 
 // Cron Job: Check reminders every minute and send notifications
-// Looks back 30 minutes to cover Render free tier cold-start gaps
 cron.schedule('* * * * *', async () => {
   try {
-    await sendPendingNotifications(5, 1);
+    const count = await sendPendingNotifications(5, 1);
+    if (count > 0) {
+      console.log(`[Cron] ✅ Ciclo completado: ${count} notificados`);
+    }
   } catch (error) {
     console.error('[Cron] Error in reminder notification job:', error);
   }

@@ -5,6 +5,9 @@ import { upload } from '../middleware/upload.middleware.js';
 
 const router = Router();
 
+// Diagnostics endpoint - no auth required
+router.get('/diagnostics', ocrDiagnostics);
+
 router.use(authMiddleware);
 
 router.post('/scan', upload.single('prescription'), scanPrescription);
@@ -18,6 +21,5 @@ router.get('/admin/metrics', getOcrMetrics);
 router.get('/admin/training-jobs', listOcrTrainingJobs);
 router.post('/admin/train', triggerOcrTrainingJob);
 router.post('/admin/training-jobs/refresh', refreshOcrTrainingJobsStatus);
-router.get('/diagnostics', ocrDiagnostics);
 
 export default router;

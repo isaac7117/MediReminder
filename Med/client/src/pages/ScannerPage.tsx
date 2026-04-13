@@ -291,7 +291,7 @@ const ScannerPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-xs text-gray-500 space-y-0.5">
-                          <p><strong>Frecuencia:</strong> {med.frequencyValue}x {med.frequencyType} a las {med.frequencyTimes.join(', ')}</p>
+                          <p><strong>Frecuencia:</strong> {med.frequencyValue}x {{ daily: 'diario', weekly: 'semanal', monthly: 'mensual' }[med.frequencyType] || med.frequencyType} a las {med.frequencyTimes.join(', ')}</p>
                           {med.duration && <p><strong>Duración:</strong> {med.duration}</p>}
                           {med.indication && <p><strong>Indicación:</strong> {med.indication}</p>}
                         </div>
