@@ -70,17 +70,34 @@ app.get('/health', (req: Request, res: Response) => {
 app.get('/api/notifications/diagnostics', async (req: Request, res: Response) => {
   try {
     const now = new Date();
-    const windowStart = new Date(now.getTime() - 60 * 60000); // 1 hour back
-    const windowEnd = new Date(now.getTime() + 60 * 60000);   // 1 hour ahead
+    const windowStart = new Date(now.getTime() - 60 * 60000);
+    const windowEnd = new Date(now.getTime() + 60 * 60000);
 
+    // Use select instead of include to avoid orphaned relation errors
     const pendingReminders = await prisma.reminder.findMany({
       where: {
         status: 'pending',
         scheduledTime: { gte: windowStart, lte: windowEnd }
       },
-      include: { medication: { select: { name: true } }, user: { select: { email: true, pushSubscriptions: true, timezone: true } } },
+      select: { id: true, userId: true, medicationId: true, scheduledTime: true, status: true },
       take: 20
     });
+
+    // Resolve users and medications individually to handle orphans
+    const enriched = await Promise.all(pendingReminders.map(async (r) => {
+      const user = await prisma.user.findUnique({ where: { id: r.userId }, select: { email: true, pushSubscriptions: true, timezone: true } }).catch(() => null);
+      const med = await prisma.medication.findUnique({ where: { id: r.medicationId }, select: { name: true } }).catch(() => null);
+      return {
+        id: r.id,
+        medication: med?.name || `ORPHAN (medId: ${r.medicationId})`,
+        scheduledTime: r.scheduledTime.toISOString(),
+        userEmail: user?.email || `ORPHAN (userId: ${r.userId})`,
+        userTimezone: user?.timezone || 'unknown',
+        pushSubscriptions: user?.pushSubscriptions?.length || 0,
+        alreadyNotified: notifiedReminderIds.has(r.id),
+        orphaned: !user || !med,
+      };
+    }));
 
     const totalPending = await prisma.reminder.count({ where: { status: 'pending' } });
     const totalActive = await prisma.medication.count({ where: { active: true } });
@@ -91,15 +108,8 @@ app.get('/api/notifications/diagnostics', async (req: Request, res: Response) =>
       vapidConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
       totalPendingReminders: totalPending,
       totalActiveMedications: totalActive,
-      remindersInWindow: pendingReminders.map(r => ({
-        id: r.id,
-        medication: r.medication.name,
-        scheduledTime: r.scheduledTime.toISOString(),
-        userEmail: r.user.email,
-        userTimezone: r.user.timezone,
-        pushSubscriptions: r.user.pushSubscriptions?.length || 0,
-        alreadyNotified: notifiedReminderIds.has(r.id),
-      }))
+      orphanedInWindow: enriched.filter(r => r.orphaned).length,
+      remindersInWindow: enriched
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -123,7 +133,8 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
   const windowStart = new Date(now.getTime() - lookbackMinutes * 60000);
   const windowEnd = new Date(now.getTime() + lookaheadMinutes * 60000);
 
-  const reminders = await prisma.reminder.findMany({
+  // First, get reminder IDs only (no joins that can fail on orphaned records)
+  const reminderIds = await prisma.reminder.findMany({
     where: {
       status: 'pending',
       scheduledTime: {
@@ -131,58 +142,62 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
         lte: windowEnd
       }
     },
-    include: {
-      medication: true,
-      user: true
-    }
+    select: { id: true, userId: true, medicationId: true, scheduledTime: true }
   });
 
-  const toNotify = reminders.filter(r => !notifiedReminderIds.has(r.id));
-
-  // Log every 5 minutes even if nothing to send, for debugging
-  const minuteMark = now.getMinutes();
-  if (minuteMark % 5 === 0 && reminders.length === 0 && toNotify.length === 0) {
-    console.log(`[Cron] 🔍 Ventana ${windowStart.toISOString()} → ${windowEnd.toISOString()} | 0 recordatorios pendientes | notifiedIds: ${notifiedReminderIds.size}`);
+  if (reminderIds.length === 0) {
+    const minuteMark = now.getMinutes();
+    if (minuteMark % 5 === 0) {
+      console.log(`[Cron] \u{1F50D} Ventana ${windowStart.toISOString()} \u2192 ${windowEnd.toISOString()} | 0 recordatorios pendientes | notifiedIds: ${notifiedReminderIds.size}`);
+    }
+    return 0;
   }
 
-  if (toNotify.length > 0) {
-    console.log(`[Cron] 🔔 ${toNotify.length} recordatorios para notificar (ventana: -${lookbackMinutes}min / +${lookaheadMinutes}min)`);
-    toNotify.forEach(r => {
-      console.log(`[Cron]   → ${r.medication.name} | scheduledTime: ${r.scheduledTime.toISOString()} | user: ${r.user.email} | subs: ${r.user.pushSubscriptions?.length || 0}`);
-    });
-  }
+  const toProcess = reminderIds.filter(r => !notifiedReminderIds.has(r.id));
+  if (toProcess.length === 0) return 0;
 
-  for (const reminder of toNotify) {
-    const user = reminder.user;
-    const med = reminder.medication;
-    const scheduledTime = new Date(reminder.scheduledTime);
-    const userTz = user.timezone || 'America/Mexico_City';
-    const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
+  let notifiedCount = 0;
 
-    if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
-      const bodyParts = [
-        `💊 ${med.dosage}`,
-        `🕐 Hora programada: ${timeStr}`,
-      ];
-      if (med.instructions) {
-        bodyParts.push(`📋 ${med.instructions}`);
+  for (const rem of toProcess) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: rem.userId } });
+      const medication = await prisma.medication.findUnique({ where: { id: rem.medicationId } });
+
+      // Clean up orphaned reminder
+      if (!user || !medication) {
+        console.warn(`[Cron] \u{1F9F9} Eliminando recordatorio hu\u00e9rfano ${rem.id} (user: ${!!user}, med: ${!!medication})`);
+        await prisma.reminder.delete({ where: { id: rem.id } }).catch(() => {});
+        notifiedReminderIds.add(rem.id);
+        continue;
       }
 
-      try {
+      const scheduledTime = new Date(rem.scheduledTime);
+      const userTz = user.timezone || 'America/Mexico_City';
+      const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
+
+      if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
+        const bodyParts = [
+          `\u{1F48A} ${medication.dosage}`,
+          `\u{1F550} Hora programada: ${timeStr}`,
+        ];
+        if (medication.instructions) {
+          bodyParts.push(`\u{1F4CB} ${medication.instructions}`);
+        }
+
         const results = await Promise.allSettled(
           user.pushSubscriptions.map((sub: string) => {
             return sendPushNotification(sub, {
-              title: `Es hora de tomar: ${med.name}`,
+              title: `Es hora de tomar: ${medication.name}`,
               body: bodyParts.join('\n'),
-              tag: `reminder-${reminder.id}`,
+              tag: `reminder-${rem.id}`,
               data: {
                 type: 'medication-reminder',
-                reminderId: reminder.id,
-                medicationId: med.id,
-                medicationName: med.name,
-                dosage: med.dosage,
-                instructions: med.instructions || '',
-                scheduledTime: reminder.scheduledTime.toISOString(),
+                reminderId: rem.id,
+                medicationId: medication.id,
+                medicationName: medication.name,
+                dosage: medication.dosage,
+                instructions: medication.instructions || '',
+                scheduledTime: rem.scheduledTime.toISOString(),
                 apiBaseUrl: process.env.SERVER_URL || `http://localhost:${PORT}`
               }
             });
@@ -195,33 +210,31 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
           if (result.status === 'fulfilled') {
             validSubs.push(user.pushSubscriptions[index]);
           } else {
-            console.warn(`[Cron] ⚠️ Push falló para suscripción ${index}:`, (result as PromiseRejectedResult).reason?.statusCode || (result as PromiseRejectedResult).reason?.message);
+            console.warn(`[Cron] \u26a0\ufe0f Push fall\u00f3 para suscripci\u00f3n ${index}:`, (result as PromiseRejectedResult).reason?.statusCode || (result as PromiseRejectedResult).reason?.message);
           }
         });
 
-        // Update subscriptions if any were invalid
         if (validSubs.length < user.pushSubscriptions.length) {
           await prisma.user.update({
             where: { id: user.id },
             data: { pushSubscriptions: validSubs }
           });
-          console.log(`[Cron] 🧹 Limpiadas ${user.pushSubscriptions.length - validSubs.length} suscripciones inválidas para ${user.email}`);
+          console.log(`[Cron] \u{1F9F9} Limpiadas ${user.pushSubscriptions.length - validSubs.length} suscripciones inv\u00e1lidas para ${user.email}`);
         }
 
-        // Mark as notified in memory to avoid re-sending within this session
-        notifiedReminderIds.add(reminder.id);
-
-        console.log(`[Cron] ✅ Notificación enviada: ${med.name} → ${user.email}`);
-      } catch (pushError: any) {
-        console.error(`[Cron] ❌ Error enviando push para ${med.name}:`, pushError.message);
+        notifiedReminderIds.add(rem.id);
+        notifiedCount++;
+        console.log(`[Cron] \u2705 Notificaci\u00f3n enviada: ${medication.name} \u2192 ${user.email}`);
+      } else {
+        notifiedReminderIds.add(rem.id);
       }
-    } else {
-      // Mark as notified even without subs to avoid re-checking
-      notifiedReminderIds.add(reminder.id);
+    } catch (pushError: any) {
+      console.error(`[Cron] \u274c Error procesando recordatorio ${rem.id}:`, pushError.message);
+      notifiedReminderIds.add(rem.id);
     }
   }
 
-  return toNotify.length;
+  return notifiedCount;
 }
 
 // Cron Job: Check reminders every minute and send notifications
