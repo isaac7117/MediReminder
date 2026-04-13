@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { scanPrescription, getUserScans, submitOcrFeedback, exportOcrTrainingDataset, listOcrTrainingSamples, updateOcrTrainingSample, deleteOcrTrainingSample, getOcrMetrics, listOcrTrainingJobs, triggerOcrTrainingJob, refreshOcrTrainingJobsStatus } from '../controllers/ocr.controller.js';
+import { scanPrescription, getUserScans, submitOcrFeedback, exportOcrTrainingDataset, listOcrTrainingSamples, updateOcrTrainingSample, deleteOcrTrainingSample, getOcrMetrics, listOcrTrainingJobs, triggerOcrTrainingJob, refreshOcrTrainingJobsStatus, ocrDiagnostics } from '../controllers/ocr.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/upload.middleware.js';
 
@@ -18,5 +18,6 @@ router.get('/admin/metrics', getOcrMetrics);
 router.get('/admin/training-jobs', listOcrTrainingJobs);
 router.post('/admin/train', triggerOcrTrainingJob);
 router.post('/admin/training-jobs/refresh', refreshOcrTrainingJobsStatus);
+router.get('/diagnostics', ocrDiagnostics);
 
 export default router;

@@ -45,8 +45,16 @@ export const scanPrescription = async (req: Request, res: Response) => {
         method = 'OpenAI GPT-4 Vision';
         console.log('[OCR] ✅ Análisis OpenAI completado');
       } catch (openaiError: any) {
-        console.warn('[OCR] ⚠️ OpenAI falló:', openaiError.message);
+        console.error('[OCR] ❌ OpenAI falló:', {
+          message: openaiError.message,
+          status: openaiError.status || openaiError.statusCode,
+          code: openaiError.code,
+          type: openaiError.type,
+          error: openaiError.error || undefined,
+        });
       }
+    } else {
+      console.warn('[OCR] ⚠️ OPENAI_API_KEY no disponible en process.env');
     }
 
     // 2. Si OpenAI falla o no está disponible, intentar con Gemini
@@ -57,8 +65,15 @@ export const scanPrescription = async (req: Request, res: Response) => {
         method = 'Gemini IA';
         console.log('[OCR] ✅ Análisis Gemini completado');
       } catch (geminiError: any) {
-        console.warn('[OCR] ⚠️ Gemini falló:', geminiError.message);
+        console.error('[OCR] ❌ Gemini falló:', {
+          message: geminiError.message,
+          status: geminiError.status || geminiError.statusCode,
+          code: geminiError.code,
+          errorDetails: geminiError.errorDetails || undefined,
+        });
       }
+    } else if (!result) {
+      console.warn('[OCR] ⚠️ GEMINI_API_KEY no disponible en process.env');
     }
 
     // 3. Fallback final a Tesseract
@@ -346,6 +361,49 @@ export const triggerOcrTrainingJob = async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: 'Error iniciando entrenamiento', error: error.message });
   }
+};
+
+export const ocrDiagnostics = async (_req: Request, res: Response) => {
+  const diag: Record<string, any> = {
+    timestamp: new Date().toISOString(),
+    envKeys: {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? `set (${process.env.OPENAI_API_KEY.substring(0, 8)}...${process.env.OPENAI_API_KEY.slice(-4)})` : 'NOT SET',
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY ? `set (${process.env.GEMINI_API_KEY.substring(0, 8)}...${process.env.GEMINI_API_KEY.slice(-4)})` : 'NOT SET',
+      OPENAI_FT_MODEL_ID: process.env.OPENAI_FT_MODEL_ID ? 'set' : 'NOT SET',
+    },
+    tests: {} as Record<string, any>,
+  };
+
+  // Test OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const testOpenAI = new (await import('openai')).default({ apiKey: process.env.OPENAI_API_KEY });
+      const r = await testOpenAI.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: 'Responde solo: OK' }],
+        max_tokens: 5,
+      });
+      diag.tests.openai = { status: 'OK', response: r.choices[0]?.message?.content };
+    } catch (e: any) {
+      diag.tests.openai = { status: 'FAIL', message: e.message, code: e.status || e.code };
+    }
+  }
+
+  // Test Gemini
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const r = await model.generateContent('Responde solo: OK');
+      diag.tests.gemini = { status: 'OK', response: r.response.text() };
+    } catch (e: any) {
+      diag.tests.gemini = { status: 'FAIL', message: e.message, code: e.status || e.code };
+    }
+  }
+
+  console.log('[OCR] 🔍 Diagnóstico:', JSON.stringify(diag, null, 2));
+  res.json(diag);
 };
 
 export const refreshOcrTrainingJobsStatus = async (req: Request, res: Response) => {
