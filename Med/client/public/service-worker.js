@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v6';
+const CACHE_NAME = 'medi-reminder-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -197,13 +197,17 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const notifData = event.notification.data || {};
 
-  if (action === 'take' || action === '') {
+  console.log('[SW] notificationclick action:', JSON.stringify(action), 'reminderId:', notifData.reminderId);
+
+  if (action === 'take') {
     event.waitUntil(
       (async () => {
         try {
           const authToken = await getAuthTokenFromCache();
           const apiBaseUrl = await getApiUrlFromCache();
           const allClients = await self.clients.matchAll({ type: 'window' });
+
+          console.log('[SW] Take: token?', !!authToken, 'apiUrl?', apiBaseUrl, 'reminderId?', notifData.reminderId);
 
           if (authToken && apiBaseUrl && notifData.reminderId) {
             const ok = await updateReminder(notifData, 'taken', authToken, apiBaseUrl);
@@ -212,7 +216,7 @@ self.addEventListener('notificationclick', (event) => {
               await self.registration.showNotification('Medicamento registrado', {
                 body: `${notifData.medicationName || 'Medicamento'} marcado como tomado.`,
                 icon: '/icons/icon-192x192.png',
-                tag: 'medication-action-confirmation',
+                tag: 'medication-confirmation-taken',
                 requireInteraction: false,
                 silent: true
               });
@@ -225,14 +229,12 @@ self.addEventListener('notificationclick', (event) => {
                   medicationName: notifData.medicationName
                 });
               }
-            } else {
-              if (allClients.length > 0) allClients[0].focus();
-              else await self.clients.openWindow('/reminders');
+              return;
             }
-          } else {
-            if (allClients.length > 0) allClients[0].focus();
-            else await self.clients.openWindow('/reminders');
           }
+          // Fallback: open the app
+          if (allClients.length > 0) allClients[0].focus();
+          else await self.clients.openWindow('/reminders');
         } catch (err) {
           console.error('[SW] Error en acción take:', err);
           await self.clients.openWindow('/reminders');
@@ -247,6 +249,8 @@ self.addEventListener('notificationclick', (event) => {
           const apiBaseUrl = await getApiUrlFromCache();
           const allClients = await self.clients.matchAll({ type: 'window' });
 
+          console.log('[SW] Skip: token?', !!authToken, 'apiUrl?', apiBaseUrl, 'reminderId?', notifData.reminderId);
+
           if (authToken && apiBaseUrl && notifData.reminderId) {
             const ok = await updateReminder(notifData, 'skipped', authToken, apiBaseUrl);
 
@@ -254,7 +258,7 @@ self.addEventListener('notificationclick', (event) => {
               await self.registration.showNotification('Medicamento omitido', {
                 body: `${notifData.medicationName || 'Medicamento'} marcado como omitido.`,
                 icon: '/icons/icon-192x192.png',
-                tag: 'medication-action-confirmation',
+                tag: 'medication-confirmation-skipped',
                 requireInteraction: false,
                 silent: true
               });
@@ -266,17 +270,18 @@ self.addEventListener('notificationclick', (event) => {
                   medicationId: notifData.medicationId
                 });
               }
+              return;
             }
-          } else {
-            if (allClients.length > 0) allClients[0].focus();
-            else await self.clients.openWindow('/reminders');
           }
+          if (allClients.length > 0) allClients[0].focus();
+          else await self.clients.openWindow('/reminders');
         } catch (err) {
           console.error('[SW] Error en acción skip:', err);
         }
       })()
     );
   } else {
+    // Click on notification body (no button) → just open the app
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clientList) => {
         for (const client of clientList) {
@@ -284,7 +289,7 @@ self.addEventListener('notificationclick', (event) => {
             return client.focus();
           }
         }
-        return self.clients.openWindow('/dashboard');
+        return self.clients.openWindow('/reminders');
       })
     );
   }
