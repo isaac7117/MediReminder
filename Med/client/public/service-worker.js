@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v4';
+const CACHE_NAME = 'medi-reminder-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -277,19 +277,6 @@ self.addEventListener('notificationclick', (event) => {
           console.error('[SW] Error en acción skip:', err);
         }
       })()
-    );
-  }
-});
-    );
-  }
-});
-              ],
-              data: notifData
-            }
-          );
-          resolve();
-        }, 10 * 60 * 1000);
-      })
     );
   } else {
     // Click sin acción específica — abrir la app
