@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
-import { createUser, loginUser, getUserById, updateUserProfile, findOrCreateGoogleUser } from '../services/token.service.js';
+import { createUser, loginUser, getUserById, updateUserProfile, findOrCreateGoogleUser, completeOnboarding, getCareProfiles } from '../services/token.service.js';
 import { validateEmail, validatePassword } from '../utils/validators.utils.js';
 
 const googleClient = new OAuth2Client();
@@ -148,6 +148,58 @@ export const updateProfile = async (req: Request, res: Response) => {
       message: 'Profile updated successfully',
       user
     });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const onboardingComplete = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'No autorizado' });
+    }
+
+    const { gender, role, careProfiles } = req.body;
+
+    if (!gender || !role) {
+      return res.status(400).json({ message: 'Género y rol son requeridos' });
+    }
+
+    const validGenders = ['male', 'female', 'other'];
+    const validRoles = ['personal', 'caregiver'];
+
+    if (!validGenders.includes(gender)) {
+      return res.status(400).json({ message: 'Género inválido' });
+    }
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Rol inválido' });
+    }
+
+    if (role === 'caregiver' && (!careProfiles || careProfiles.length === 0)) {
+      return res.status(400).json({ message: 'Debe agregar al menos una persona a cuidar' });
+    }
+
+    const user = await completeOnboarding(userId, { gender, role, careProfiles });
+
+    res.json({
+      message: 'Onboarding completado',
+      user
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getCareProfilesList = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'No autorizado' });
+    }
+
+    const profiles = await getCareProfiles(userId);
+    res.json({ careProfiles: profiles });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

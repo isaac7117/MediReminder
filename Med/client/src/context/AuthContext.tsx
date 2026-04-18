@@ -86,6 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  }, []);
+
   const value: AuthContextType = {
     user,
     token,
@@ -95,7 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     googleLogin,
     register,
     logout,
-    updateProfile
+    updateProfile,
+    updateUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

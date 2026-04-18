@@ -5,6 +5,18 @@ export interface User {
   dateOfBirth?: string;
   phoneNumber?: string;
   profileImage?: string;
+  onboardingCompleted?: boolean;
+  gender?: string;
+  role?: string;
+}
+
+export interface CareProfile {
+  id: string;
+  userId: string;
+  name: string;
+  relationship: string;
+  isDefault: boolean;
+  createdAt: string;
 }
 
 export interface AuthContextType {
@@ -17,4 +29,5 @@ export interface AuthContextType {
   register: (email: string, password: string, confirmPassword: string, fullName: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  updateUser: (user: User) => void;
 }

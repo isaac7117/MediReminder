@@ -55,5 +55,19 @@ export const authService = {
     } catch (error: any) {
       throw new Error(getApiErrorMessage(error, 'No se pudo iniciar sesión con Google'));
     }
+  },
+
+  completeOnboarding: async (data: {
+    gender: string;
+    role: string;
+    careProfiles?: { name: string; relationship: string }[];
+  }) => {
+    const response = await apiClient.post('/auth/onboarding', data);
+    return response.data;
+  },
+
+  getCareProfiles: async () => {
+    const response = await apiClient.get('/auth/care-profiles');
+    return response.data;
   }
 };

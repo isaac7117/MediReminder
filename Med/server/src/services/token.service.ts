@@ -37,7 +37,7 @@ export const createUser = async (
 export const loginUser = async (
   email: string,
   password: string
-): Promise<TokenPayload & { user: { id: string; email: string; fullName: string } }> => {
+) => {
   const normalizedEmail = email.trim();
 
   // Compatibilidad para cuentas antiguas con correo guardado en mayúsculas/minúsculas mixtas.
@@ -68,7 +68,10 @@ export const loginUser = async (
     user: {
       id: user.id,
       email: user.email,
-      fullName: user.fullName
+      fullName: user.fullName,
+      onboardingCompleted: user.onboardingCompleted,
+      gender: user.gender,
+      role: user.role
     }
   };
 };
@@ -77,7 +80,7 @@ export const findOrCreateGoogleUser = async (
   email: string,
   fullName: string,
   timezone?: string
-): Promise<TokenPayload & { user: { id: string; email: string; fullName: string } }> => {
+) => {
   const normalizedEmail = email.toLowerCase().trim();
 
   let user = await prisma.user.findFirst({
@@ -111,7 +114,10 @@ export const findOrCreateGoogleUser = async (
     user: {
       id: user.id,
       email: user.email,
-      fullName: user.fullName
+      fullName: user.fullName,
+      onboardingCompleted: user.onboardingCompleted,
+      gender: user.gender,
+      role: user.role
     }
   };
 };
@@ -125,7 +131,10 @@ export const getUserById = async (userId: string) => {
       fullName: true,
       dateOfBirth: true,
       phoneNumber: true,
-      profileImage: true
+      profileImage: true,
+      onboardingCompleted: true,
+      gender: true,
+      role: true
     }
   });
 };
@@ -138,6 +147,9 @@ export const updateUserProfile = async (
     dateOfBirth?: Date;
     profileImage?: string;
     timezone?: string;
+    gender?: string;
+    role?: string;
+    onboardingCompleted?: boolean;
   }
 ) => {
   return prisma.user.update({
@@ -149,7 +161,71 @@ export const updateUserProfile = async (
       fullName: true,
       dateOfBirth: true,
       phoneNumber: true,
-      profileImage: true
+      profileImage: true,
+      onboardingCompleted: true,
+      gender: true,
+      role: true
     }
+  });
+};
+
+export const completeOnboarding = async (
+  userId: string,
+  data: {
+    gender: string;
+    role: string;
+    careProfiles?: { name: string; relationship: string }[];
+  }
+) => {
+  // Update user profile
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      gender: data.gender,
+      role: data.role,
+      onboardingCompleted: true
+    }
+  });
+
+  // Create care profiles if caregiver
+  if (data.role === 'caregiver' && data.careProfiles && data.careProfiles.length > 0) {
+    await prisma.careProfile.createMany({
+      data: data.careProfiles.map((cp, index) => ({
+        userId,
+        name: cp.name,
+        relationship: cp.relationship,
+        isDefault: index === 0
+      }))
+    });
+  } else if (data.role === 'personal') {
+    // Create a default "self" care profile for personal use
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
+    await prisma.careProfile.create({
+      data: {
+        userId,
+        name: user?.fullName || 'Yo',
+        relationship: 'self',
+        isDefault: true
+      }
+    });
+  }
+
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      onboardingCompleted: true,
+      gender: true,
+      role: true
+    }
+  });
+};
+
+export const getCareProfiles = async (userId: string) => {
+  return prisma.careProfile.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'asc' }
   });
 };

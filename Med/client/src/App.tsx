@@ -15,6 +15,7 @@ import MedicationFormPage from './pages/MedicationFormPage';
 import RemindersPage from './pages/RemindersPage';
 import ScannerPage from './pages/ScannerPage';
 import AdminOcrPage from './pages/AdminOcrPage';
+import OnboardingPage from './pages/OnboardingPage';
 
 function App() {
   useEffect(() => {
@@ -91,6 +92,12 @@ function App() {
             <Route path="/admin/ocr" element={
               <ProtectedRoute>
                 <AdminOcrPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/onboarding" element={
+              <ProtectedRoute allowOnboarding>
+                <OnboardingPage />
               </ProtectedRoute>
             } />
 
