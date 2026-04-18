@@ -29,6 +29,27 @@ const getTrainingDir = (): string => {
   return dir;
 };
 
+/**
+ * On startup, load the latest successfully fine-tuned model ID from the DB
+ * so that it's available even if OPENAI_FT_MODEL_ID isn't set in env vars.
+ */
+export const loadLatestFineTunedModel = async (): Promise<void> => {
+  if (process.env.OPENAI_FT_MODEL_ID) return; // env var takes priority
+  try {
+    const latest = await prisma.ocrTrainingJob.findMany({
+      where: { status: 'succeeded', fineTunedModelId: { not: null } },
+      orderBy: { finishedAt: 'desc' },
+      take: 1
+    });
+    if (latest.length > 0 && latest[0].fineTunedModelId) {
+      process.env.OPENAI_FT_MODEL_ID = latest[0].fineTunedModelId;
+      console.log(`[OCR-Training] ✅ Modelo fine-tuned cargado desde BD: ${latest[0].fineTunedModelId}`);
+    }
+  } catch (e) {
+    // Silently ignore - table may not exist yet
+  }
+};
+
 export const buildOcrTrainingJsonl = (samples: Array<{ ocrText: string; correctedOutput: unknown }>): string => {
   const systemPrompt = getOcrSystemPrompt();
   return samples
@@ -131,14 +152,24 @@ export const refreshOcrTrainingJobs = async () => {
   for (const job of jobs) {
     try {
       const remote = await openai.fineTuning.jobs.retrieve(job.fineTuneJobId as string);
+      const newModelId = remote.fine_tuned_model || job.fineTunedModelId || null;
+
       await prisma.ocrTrainingJob.update({
         where: { id: job.id },
         data: {
           status: remote.status || job.status,
-          fineTunedModelId: remote.fine_tuned_model || job.fineTunedModelId || null,
+          fineTunedModelId: newModelId,
           finishedAt: remote.status === 'succeeded' || remote.status === 'failed' ? new Date() : job.finishedAt
         }
       });
+
+      // Auto-switchover: when training succeeds, update the env var so the
+      // fine-tuned model is used for subsequent OCR text analysis requests.
+      if (remote.status === 'succeeded' && newModelId) {
+        process.env.OPENAI_FT_MODEL_ID = newModelId;
+        console.log(`[OCR-Training] \u2705 Modelo fine-tuned activado autom\u00e1ticamente: ${newModelId}`);
+      }
+
       updatedCount += 1;
     } catch (error) {
       // Ignore individual errors

@@ -226,7 +226,7 @@ const ScannerPage: React.FC = () => {
         response: error.response?.data,
         status: error.response?.status
       }, null, 2));
-      showNotification('error', error.response?.data?.message || error.message || 'Failed to create medication');
+      showNotification('error', error.response?.data?.message || error.message || 'Error al crear medicamento');
     }
   };
 

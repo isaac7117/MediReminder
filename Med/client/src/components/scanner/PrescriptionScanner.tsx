@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, Loader, CheckCircle, FileImage, Trash2, Cpu, Pencil } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Upload, Loader, CheckCircle, FileImage, Trash2, Cpu, Pencil, Camera } from 'lucide-react';
 import { ocrService } from '../../services/ocr.service';
 import { autoMedicationService } from '../../services/auto-medication.service';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -28,7 +28,10 @@ interface PrescriptionScannerProps {
   onAutoCreated?: (medications: any) => void;
 }
 
+const isMobileDevice = () => /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultReceived, onAutoCreated }) => {
+  const isMobile = useMemo(() => isMobileDevice(), []);
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoCreating, setIsAutoCreating] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -246,11 +249,23 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
             <input
               type="file"
               accept="image/*"
+              {...(isMobile ? { capture: 'environment' } : {})}
               onChange={handleFileChange}
               disabled={isLoading}
               className="hidden"
               id="prescription-input"
             />
+
+            {isMobile && (
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={isLoading}
+                className="hidden"
+                id="prescription-gallery"
+              />
+            )}
 
             <label htmlFor="prescription-input" className="cursor-pointer block">
               {isLoading ? (
@@ -267,15 +282,29 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
               ) : (
                 <div className="py-4">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center group-hover:bg-primary-50 transition-colors">
-                    <Upload className="text-gray-300" size={32} />
+                    {isMobile ? <Camera className="text-primary-400" size={32} /> : <Upload className="text-gray-300" size={32} />}
                   </div>
-                  <p className="font-semibold text-medical-dark">Haz clic para subir la receta</p>
-                  <p className="text-xs text-gray-400 mt-1.5">PNG, JPG hasta 5MB</p>
-                  <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-300">
-                    <div className="w-8 h-[1px] bg-gray-200" />
-                    O arrastra aquí
-                    <div className="w-8 h-[1px] bg-gray-200" />
-                  </div>
+                  <p className="font-semibold text-medical-dark">
+                    {isMobile ? 'Toca para abrir la cámara' : 'Haz clic para subir la receta'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {isMobile ? 'Toma una foto o elige de la galería' : 'PNG, JPG hasta 5MB'}
+                  </p>
+                  {isMobile ? (
+                    <label
+                      htmlFor="prescription-gallery"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-block mt-3 text-xs text-primary-600 font-medium underline cursor-pointer"
+                    >
+                      Elegir de galería
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-300">
+                      <div className="w-8 h-[1px] bg-gray-200" />
+                      O arrastra aquí
+                      <div className="w-8 h-[1px] bg-gray-200" />
+                    </div>
+                  )}
                 </div>
               )}
             </label>

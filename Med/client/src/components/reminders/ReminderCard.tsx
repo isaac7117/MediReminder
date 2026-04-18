@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, XCircle, SkipForward, Clock } from 'lucide-react';
+import { Check, X, SkipForward, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateHelpers';
 import type { Reminder } from '../../types/reminder.types';
 import { STATUS_COLORS, STATUS_LABELS } from '../../utils/constants';
@@ -64,18 +64,20 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
           <button
             onClick={() => onTake(reminder.id)}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-secondary-500 hover:bg-secondary-600 disabled:bg-gray-200 text-white font-medium py-2 px-4 rounded-xl transition-colors text-sm"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-secondary-500 hover:bg-secondary-600 active:scale-95 disabled:bg-gray-200 text-white font-medium py-3 sm:py-2 px-4 rounded-xl transition-all text-sm min-h-[44px]"
           >
-            <CheckCircle size={15} />
-            Tomar
+            <Check size={18} className="sm:hidden" />
+            <CheckCircle size={15} className="hidden sm:block" />
+            <span>Tomar</span>
           </button>
           <button
             onClick={() => onSkip(reminder.id)}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-600 font-medium py-2 px-4 rounded-xl transition-colors text-sm"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 disabled:bg-gray-50 text-gray-600 font-medium py-3 sm:py-2 px-4 rounded-xl transition-all text-sm min-h-[44px]"
           >
-            <SkipForward size={15} />
-            Omitir
+            <X size={18} className="sm:hidden" />
+            <SkipForward size={15} className="hidden sm:block" />
+            <span>Omitir</span>
           </button>
         </div>
       )}

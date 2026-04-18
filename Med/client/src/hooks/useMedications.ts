@@ -33,7 +33,7 @@ export const useMedications = (options: UseMedicationsOptions = { autoFetch: tru
       return response.medication;
     } catch (err: any) {
       console.error('createMedication error', err.response?.data || err.message || err);
-      setError(err.response?.data?.message || 'Failed to create medication');
+      setError(err.response?.data?.message || 'Error al crear medicamento');
       throw err;
     } finally {
       setIsLoading(false);

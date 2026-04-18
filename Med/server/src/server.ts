@@ -5,7 +5,7 @@ import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
 import { sendNotificationToSubscriptions, sendPushNotification } from './services/notification.service.js';
 import { regenerateAllReminders, markMissedReminders } from './services/scheduler.service.js';
-import { runOcrFineTuningJob, refreshOcrTrainingJobs } from './services/ocr-training.service.js';
+import { runOcrFineTuningJob, refreshOcrTrainingJobs, loadLatestFineTunedModel } from './services/ocr-training.service.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
 
 // Routes
@@ -312,6 +312,9 @@ app.listen(PORT, () => {
   if (process.env.NODE_ENV === 'production') {
     setTimeout(async () => {
       try {
+        // Load latest fine-tuned OCR model from DB if available
+        await loadLatestFineTunedModel();
+
         console.log('[Startup] 🔄 Cold-start: regenerando recordatorios...');
         await regenerateAllReminders();
         console.log('[Startup] ✅ Recordatorios regenerados tras cold start');
