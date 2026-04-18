@@ -44,26 +44,16 @@ const RemindersPage: React.FC = () => {
     setNotifStatus({ ...status, subscribed, basicEnabled });
   };
 
-  // Configurar Push Notifications (completo con SW + VAPID)
-  const handleSetupPushNotifications = async () => {
+  // Configurar notificaciones (un solo botón, todo en uno)
+  const handleActivateNotifications = async () => {
     try {
       setIsSettingUpNotifs(true);
-      await notificationService.setupPushSubscription();
-      showNotification('success', '¡Notificaciones push activadas correctamente!');
-      await checkNotificationStatus();
-    } catch (error: any) {
-      showNotification('error', error.message || 'Error al configurar notificaciones push');
-    } finally {
-      setIsSettingUpNotifs(false);
-    }
-  };
-
-  // Configurar solo permiso de notificaciones básicas del navegador
-  const handleSetupBasicNotifications = async () => {
-    try {
-      setIsSettingUpNotifs(true);
-      await notificationService.setupBasicNotifications();
-      showNotification('success', '¡Notificaciones del navegador activadas!');
+      const result = await notificationService.activateNotifications();
+      if (result === 'push') {
+        showNotification('success', '¡Notificaciones push activadas! Recibirás alertas incluso con el navegador cerrado.');
+      } else {
+        showNotification('success', '¡Notificaciones activadas! Funcionarán mientras tengas la app abierta.');
+      }
       await checkNotificationStatus();
     } catch (error: any) {
       showNotification('error', error.message || 'Error al activar notificaciones');
@@ -224,10 +214,10 @@ const RemindersPage: React.FC = () => {
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {/* Botón: Activar notificaciones básicas (permiso del navegador) */}
-                {notifStatus.notificationsSupported && notifStatus.permission !== 'denied' && notifStatus.permission !== 'granted' && (
+                {/* Botón único: Activar Notificaciones (permiso + push en un solo paso) */}
+                {notifStatus.notificationsSupported && !notifStatus.subscribed && notifStatus.permission !== 'granted' && (
                   <button
-                    onClick={handleSetupBasicNotifications}
+                    onClick={handleActivateNotifications}
                     disabled={isSettingUpNotifs}
                     className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5"
                   >
@@ -236,10 +226,10 @@ const RemindersPage: React.FC = () => {
                   </button>
                 )}
 
-                {/* Botón: Activar Push (requiere SW + PushManager) */}
-                {notifStatus.pushSupported && notifStatus.permission === 'granted' && !notifStatus.subscribed && (
+                {/* Si tiene permiso pero no push, ofrecer activar push */}
+                {notifStatus.notificationsSupported && !notifStatus.subscribed && notifStatus.permission === 'granted' && (
                   <button
-                    onClick={handleSetupPushNotifications}
+                    onClick={handleActivateNotifications}
                     disabled={isSettingUpNotifs}
                     className="flex items-center gap-1.5 px-4 py-2 bg-accent-500 text-white rounded-xl hover:bg-accent-600 disabled:opacity-50 transition-colors text-xs font-medium shadow-sm"
                   >
