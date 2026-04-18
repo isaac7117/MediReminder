@@ -1,5 +1,7 @@
 import apiClient from './api';
 
+const SW_AUTH_CACHE = 'sw-auth-store';
+
 export const notificationService = {
   getVAPIDPublicKey: async () => {
     const response = await apiClient.get('/notifications/vapid-public-key');
@@ -162,8 +164,8 @@ export const notificationService = {
       const now = new Date();
       const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-      const notif = new Notification('💊 Es hora de tomar: Ibuprofeno (prueba)', {
-        body: `💊 500mg\n🕐 Hora programada: ${timeStr}\n📋 Tomar con comida`,
+      const notif = new Notification('Es hora de tomar: Ibuprofeno (prueba)', {
+        body: `500mg\nHora programada: ${timeStr}\nTomar con comida`,
         icon: '/icons/icon-192x192.png',
         tag: 'test-local',
         requireInteraction: true
@@ -172,6 +174,32 @@ export const notificationService = {
       return true;
     }
     return false;
+  },
+
+  /**
+   * Store auth token and API base URL in Cache API so the service worker
+   * can read them without needing postMessage (blocked by COOP headers).
+   */
+  syncAuthForServiceWorker: async () => {
+    if (!('caches' in window)) return;
+    try {
+      const cache = await caches.open(SW_AUTH_CACHE);
+      const token = localStorage.getItem('authToken') || '';
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      await cache.put('/sw-auth-token', new Response(token));
+      await cache.put('/sw-api-url', new Response(apiUrl));
+    } catch (e) {
+      console.warn('[Notif] Error syncing auth to SW cache:', e);
+    }
+  },
+
+  clearAuthForServiceWorker: async () => {
+    if (!('caches' in window)) return;
+    try {
+      await caches.delete(SW_AUTH_CACHE);
+    } catch (e) {
+      console.warn('[Notif] Error clearing SW auth cache:', e);
+    }
   }
 };
 

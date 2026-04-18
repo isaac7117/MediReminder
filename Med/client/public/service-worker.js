@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v5';
+const CACHE_NAME = 'medi-reminder-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -102,26 +102,22 @@ self.addEventListener('push', (event) => {
 
   const notifData = data.data || {};
   
-  // Construir cuerpo con detalles del medicamento
   let body = data.body || 'Es hora de tomar tu medicamento';
   
-  // Si tenemos datos del medicamento, construir un cuerpo enriquecido
   if (notifData.medicationName && !data.body) {
-    const parts = [`💊 ${notifData.dosage || ''}`];
-    if (notifData.instructions) {
-      parts.push(`📋 ${notifData.instructions}`);
-    }
+    const parts = [];
+    if (notifData.dosage) parts.push(`Dosis: ${notifData.dosage}`);
+    if (notifData.instructions) parts.push(notifData.instructions);
     if (notifData.scheduledTime) {
       const time = new Date(notifData.scheduledTime);
-      parts.push(`🕐 Programado: ${time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })}`);
+      parts.push(`Hora: ${time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })}`);
     }
     body = parts.join('\n');
   }
 
-  // SIEMPRE incluir botones de acción (incluso sin reminderId, son útiles como UX)
   const actions = [
-    { action: 'take', title: '✅ Tomar' },
-    { action: 'skip', title: '❌ Omitir' }
+    { action: 'take', title: 'Tomar' },
+    { action: 'skip', title: 'Omitir' }
   ];
 
   const options = {
@@ -136,14 +132,63 @@ self.addEventListener('push', (event) => {
     actions: actions
   };
 
-  console.log('[SW] Mostrando notificación con', actions.length, 'acciones');
-
-  const title = data.title || '💊 MediReminder';
+  const title = data.title || 'MediReminder';
 
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
 });
+
+// Helper: read auth token from Cache API (shared with client app)
+async function getAuthTokenFromCache() {
+  try {
+    const cache = await caches.open('sw-auth-store');
+    const response = await cache.match('/sw-auth-token');
+    if (response) {
+      const token = await response.text();
+      return token || null;
+    }
+  } catch (e) {
+    console.warn('[SW] Error reading auth token from cache:', e);
+  }
+  return null;
+}
+
+// Helper: read API base URL from Cache API
+async function getApiUrlFromCache() {
+  try {
+    const cache = await caches.open('sw-auth-store');
+    const response = await cache.match('/sw-api-url');
+    if (response) {
+      const url = await response.text();
+      return url || null;
+    }
+  } catch (e) {
+    console.warn('[SW] Error reading API URL from cache:', e);
+  }
+  return null;
+}
+
+// Helper: call API to update reminder status
+async function updateReminder(notifData, status, authToken, apiBaseUrl) {
+  if (!notifData.reminderId || !authToken || !apiBaseUrl) return false;
+  const endpoint = status === 'taken' ? 'take' : 'skip';
+  try {
+    const response = await fetch(`${apiBaseUrl}/reminders/${notifData.reminderId}/${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ notes: `${status === 'taken' ? 'Tomado' : 'Omitido'} desde notificación` })
+    });
+    console.log(`[SW] ${endpoint} response: ${response.status}`);
+    return response.ok;
+  } catch (err) {
+    console.error(`[SW] Error en ${endpoint}:`, err);
+    return false;
+  }
+}
 
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
@@ -152,54 +197,19 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const notifData = event.notification.data || {};
 
-  // Helper: get auth token from an open app window
-  async function getAuthToken(clients) {
-    if (clients.length === 0) return null;
-    try {
-      const msgChannel = new MessageChannel();
-      const tokenPromise = new Promise((resolve) => {
-        msgChannel.port1.onmessage = (e) => resolve(e.data?.token || null);
-        setTimeout(() => resolve(null), 3000);
-      });
-      clients[0].postMessage({ type: 'GET_AUTH_TOKEN' }, [msgChannel.port2]);
-      return await tokenPromise;
-    } catch { return null; }
-  }
-
-  // Helper: call API to update reminder status
-  async function updateReminder(status, authToken) {
-    if (!notifData.reminderId || !authToken) return false;
-    const apiBase = notifData.apiBaseUrl || self.location.origin;
-    const endpoint = status === 'taken' ? 'take' : 'skip';
-    try {
-      const response = await fetch(`${apiBase}/api/reminders/${notifData.reminderId}/${endpoint}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ notes: `${status === 'taken' ? 'Tomado' : 'Omitido'} desde notificación` })
-      });
-      return response.ok;
-    } catch (err) {
-      console.error(`[SW] Error en ${endpoint}:`, err);
-      return false;
-    }
-  }
-
   if (action === 'take' || action === '') {
-    // "Tomar" button or general click → mark as taken
     event.waitUntil(
       (async () => {
         try {
+          const authToken = await getAuthTokenFromCache();
+          const apiBaseUrl = await getApiUrlFromCache();
           const allClients = await self.clients.matchAll({ type: 'window' });
-          const authToken = await getAuthToken(allClients);
 
-          if (authToken && notifData.reminderId) {
-            const ok = await updateReminder('taken', authToken);
+          if (authToken && apiBaseUrl && notifData.reminderId) {
+            const ok = await updateReminder(notifData, 'taken', authToken, apiBaseUrl);
 
             if (ok) {
-              await self.registration.showNotification('✅ ¡Medicamento registrado!', {
+              await self.registration.showNotification('Medicamento registrado', {
                 body: `${notifData.medicationName || 'Medicamento'} marcado como tomado.`,
                 icon: '/icons/icon-192x192.png',
                 tag: 'medication-action-confirmation',
@@ -216,24 +226,12 @@ self.addEventListener('notificationclick', (event) => {
                 });
               }
             } else {
-              // API call failed or no reminderId → open app
               if (allClients.length > 0) allClients[0].focus();
               else await self.clients.openWindow('/reminders');
             }
           } else {
-            // No token → open app
-            if (allClients.length > 0) {
-              allClients[0].focus();
-              if (notifData.reminderId) {
-                allClients[0].postMessage({
-                  type: 'TAKE_MEDICATION',
-                  reminderId: notifData.reminderId,
-                  medicationId: notifData.medicationId
-                });
-              }
-            } else {
-              await self.clients.openWindow('/reminders');
-            }
+            if (allClients.length > 0) allClients[0].focus();
+            else await self.clients.openWindow('/reminders');
           }
         } catch (err) {
           console.error('[SW] Error en acción take:', err);
@@ -242,18 +240,18 @@ self.addEventListener('notificationclick', (event) => {
       })()
     );
   } else if (action === 'skip') {
-    // "Omitir" button → mark as skipped
     event.waitUntil(
       (async () => {
         try {
+          const authToken = await getAuthTokenFromCache();
+          const apiBaseUrl = await getApiUrlFromCache();
           const allClients = await self.clients.matchAll({ type: 'window' });
-          const authToken = await getAuthToken(allClients);
 
-          if (authToken && notifData.reminderId) {
-            const ok = await updateReminder('skipped', authToken);
+          if (authToken && apiBaseUrl && notifData.reminderId) {
+            const ok = await updateReminder(notifData, 'skipped', authToken, apiBaseUrl);
 
             if (ok) {
-              await self.registration.showNotification('⏭️ Medicamento omitido', {
+              await self.registration.showNotification('Medicamento omitido', {
                 body: `${notifData.medicationName || 'Medicamento'} marcado como omitido.`,
                 icon: '/icons/icon-192x192.png',
                 tag: 'medication-action-confirmation',
@@ -279,7 +277,6 @@ self.addEventListener('notificationclick', (event) => {
       })()
     );
   } else {
-    // Click sin acción específica — abrir la app
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clientList) => {
         for (const client of clientList) {

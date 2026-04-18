@@ -114,8 +114,8 @@ router.post('/test', authMiddleware, async (req: Request, res: Response) => {
     const results = await Promise.allSettled(
       subscriptions.map((sub: string) => 
         sendPushNotification(sub, {
-          title: '� Es hora de tomar: Ibuprofeno (prueba)',
-          body: '💊 500mg\n🕐 Hora programada: ahora\n📋 Tomar con comida',
+          title: 'Es hora de tomar Ibuprofeno (prueba)',
+          body: 'Dosis: 500mg\nHora programada: ahora\nTomar con comida',
           tag: 'test-notification',
           data: {
             type: 'medication-reminder',

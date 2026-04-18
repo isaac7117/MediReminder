@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { authService } from '../services/auth.service';
+import { notificationService } from '../services/notification.service';
 import type { User, AuthContextType } from '../types/user.types';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+      notificationService.syncAuthForServiceWorker();
     }
 
     setIsLoading(false);
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.user);
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      notificationService.syncAuthForServiceWorker();
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.user);
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      notificationService.syncAuthForServiceWorker();
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setToken(null);
     authService.logout();
+    notificationService.clearAuthForServiceWorker();
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<User>) => {

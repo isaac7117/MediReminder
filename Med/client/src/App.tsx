@@ -32,24 +32,16 @@ function App() {
       navigator.serviceWorker.addEventListener('message', (event) => {
         const { type } = event.data || {};
 
-        // El SW pide el token de auth para llamar al API
-        if (type === 'GET_AUTH_TOKEN' && event.ports[0]) {
-          const token = localStorage.getItem('authToken');
-          event.ports[0].postMessage({ token });
-          return;
-        }
-
         // El SW confirma que un medicamento fue tomado → refrescar datos
         if (type === 'MEDICATION_TAKEN') {
           console.log('[App] Medicamento tomado desde notificación:', event.data.medicationName);
-          // Disparar evento global para que hooks/páginas refresquen
           window.dispatchEvent(new CustomEvent('medication-taken', { detail: event.data }));
         }
 
-        // Compatibilidad: mensaje TAKE_MEDICATION (cuando no hay token disponible)
-        if (type === 'TAKE_MEDICATION') {
-          console.log('[App] Solicitud de toma desde SW (sin API):', event.data.reminderId);
-          window.dispatchEvent(new CustomEvent('medication-taken', { detail: event.data }));
+        // El SW confirma que un medicamento fue omitido
+        if (type === 'MEDICATION_SKIPPED') {
+          console.log('[App] Medicamento omitido desde notificación:', event.data.medicationName);
+          window.dispatchEvent(new CustomEvent('medication-skipped', { detail: event.data }));
         }
       });
     }

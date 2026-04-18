@@ -177,17 +177,17 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
 
       if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
         const bodyParts = [
-          `\u{1F48A} ${medication.dosage}`,
-          `\u{1F550} Hora programada: ${timeStr}`,
+          `Dosis: ${medication.dosage}`,
+          `Hora programada: ${timeStr}`,
         ];
         if (medication.instructions) {
-          bodyParts.push(`\u{1F4CB} ${medication.instructions}`);
+          bodyParts.push(medication.instructions);
         }
 
         const results = await Promise.allSettled(
           user.pushSubscriptions.map((sub: string) => {
             return sendPushNotification(sub, {
-              title: `Es hora de tomar: ${medication.name}`,
+              title: `Es hora de tomar ${medication.name}`,
               body: bodyParts.join('\n'),
               tag: `reminder-${rem.id}`,
               data: {
