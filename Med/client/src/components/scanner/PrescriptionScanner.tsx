@@ -41,6 +41,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
   const [feedbackConsent, setFeedbackConsent] = useState(false);
   const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [scanMethod, setScanMethod] = useState<string | null>(null);
   const { showNotification } = useNotifications();
 
   const processFile = async (file: File) => {
@@ -71,7 +72,9 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
       
       if (response && response.data) {
         console.log('[OCR] Data:', response.data);
+        console.log('[OCR] Método:', response.method, '| Medicamentos:', response.medicationCount);
         setScanResult(response.data);
+        setScanMethod(response.method || null);
         // Populate editable feedback cards from medications
         const meds: FeedbackMedication[] = (response.data.medications || []).map((m: any) => ({
           name: m.name || '',
@@ -84,7 +87,13 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
         setFeedbackConsent(false);
         setFeedbackError(null);
         onResultReceived(response.data);
-        showNotification('success', 'Receta escaneada exitosamente. Revisa los datos extraídos.');
+        const count = response.medicationCount || 0;
+        showNotification(
+          count > 0 ? 'success' : 'warning',
+          count > 0
+            ? `${count} medicamento(s) detectados con ${response.method || 'IA'}`
+            : 'No se detectaron medicamentos. Intenta con una imagen más clara.'
+        );
       } else {
         console.warn('[OCR] No hay datos en la respuesta:', response);
         showNotification('warning', 'No se pudieron extraer datos de la receta. Revisa manualmente.');
@@ -128,6 +137,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
   const handleClear = () => {
     setPreview(null);
     setScanResult(null);
+    setScanMethod(null);
     setFeedbackMeds([]);
     setFeedbackConsent(false);
     setFeedbackError(null);
@@ -326,10 +336,17 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
 
         {scanResult && (
           <div className="mt-5 bg-primary-50/40 rounded-2xl p-5 border border-primary-100">
-            <h4 className="font-semibold text-medical-dark mb-3 flex items-center gap-2 text-sm">
-              <FileImage size={16} className="text-primary-500" />
-              Datos Extraídos
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-medical-dark flex items-center gap-2 text-sm">
+                <FileImage size={16} className="text-primary-500" />
+                Datos Extraídos
+              </h4>
+              {scanMethod && (
+                <span className="text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">
+                  {scanMethod}
+                </span>
+              )}
+            </div>
             {scanResult.medications && scanResult.medications.length > 0 ? (
               <>
                 <div className="space-y-2.5 text-sm">

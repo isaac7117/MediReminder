@@ -43,7 +43,13 @@ export const scanPrescription = async (req: Request, res: Response) => {
         console.log('[OCR] 🤖 Intentando con OpenAI GPT-4 Vision...');
         result = await analyzePrescriptionWithOpenAI(imagePath);
         method = 'OpenAI GPT-4 Vision';
-        console.log('[OCR] ✅ Análisis OpenAI completado');
+        console.log(`[OCR] ✅ Análisis OpenAI completado - ${result.medications?.length || 0} medicamentos`);
+
+        // Si OpenAI respondió pero no encontró medicamentos, descartar y probar otros
+        if (!result.medications || result.medications.length === 0) {
+          console.warn('[OCR] ⚠️ OpenAI devolvió 0 medicamentos, intentando otros métodos...');
+          result = null;
+        }
       } catch (openaiError: any) {
         console.error('[OCR] ❌ OpenAI falló:', {
           message: openaiError.message,
@@ -57,13 +63,18 @@ export const scanPrescription = async (req: Request, res: Response) => {
       console.warn('[OCR] ⚠️ OPENAI_API_KEY no disponible en process.env');
     }
 
-    // 2. Si OpenAI falla o no está disponible, intentar con Gemini
+    // 2. Si OpenAI falla, no encontró meds, o no está disponible, intentar con Gemini
     if (!result && process.env.GEMINI_API_KEY) {
       try {
         console.log('[OCR] 🤖 Intentando con Gemini IA...');
         result = await analyzePrescriptionWithGemini(imagePath);
         method = 'Gemini IA';
-        console.log('[OCR] ✅ Análisis Gemini completado');
+        console.log(`[OCR] ✅ Análisis Gemini completado - ${result.medications?.length || 0} medicamentos`);
+
+        if (!result.medications || result.medications.length === 0) {
+          console.warn('[OCR] ⚠️ Gemini devolvió 0 medicamentos, intentando Tesseract...');
+          result = null;
+        }
       } catch (geminiError: any) {
         console.error('[OCR] ❌ Gemini falló:', {
           message: geminiError.message,
@@ -76,22 +87,30 @@ export const scanPrescription = async (req: Request, res: Response) => {
       console.warn('[OCR] ⚠️ GEMINI_API_KEY no disponible en process.env');
     }
 
-    // 3. Fallback final a Tesseract
+    // 3. Fallback: Tesseract OCR + refinamiento con texto
     if (!result) {
       try {
         console.log('[OCR] 📖 Usando Tesseract OCR como fallback...');
         const tesseractResult = await analyzeWithTesseract(imagePath);
 
-        // Intentar refinar con modelo fine-tuned de OpenAI sobre texto OCR
-        if (process.env.OPENAI_FT_MODEL_ID && tesseractResult.rawText?.length > 30) {
+        // Intentar refinar con OpenAI (modelo fine-tuned o base) sobre texto OCR
+        const canRefine = tesseractResult.rawText?.length > 30 && process.env.OPENAI_API_KEY;
+        if (canRefine) {
           try {
-            console.log('[OCR] 🧠 Refinando con OpenAI fine-tuned (texto OCR)...');
-            const fineTuned = await analyzePrescriptionTextWithOpenAI(tesseractResult.rawText);
-            result = { ...fineTuned, rawText: tesseractResult.rawText };
-            method = 'OpenAI Fine-tuned (texto OCR)';
-            console.log('[OCR] ✅ Análisis fine-tuned completado');
-          } catch (fineTuneError: any) {
-            console.warn('[OCR] ⚠️ Fine-tuned falló, usando Tesseract:', fineTuneError.message);
+            const modelLabel = process.env.OPENAI_FT_MODEL_ID ? 'fine-tuned' : 'gpt-4o-mini';
+            console.log(`[OCR] 🧠 Refinando con OpenAI ${modelLabel} (texto OCR)...`);
+            const refined = await analyzePrescriptionTextWithOpenAI(tesseractResult.rawText);
+            if (refined.medications && refined.medications.length > 0) {
+              result = { ...refined, rawText: tesseractResult.rawText };
+              method = `OpenAI ${modelLabel} (texto OCR)`;
+              console.log(`[OCR] ✅ Refinamiento completado - ${result.medications.length} medicamentos`);
+            } else {
+              console.warn('[OCR] ⚠️ Refinamiento no encontró medicamentos, usando Tesseract puro');
+              result = tesseractResult;
+              method = 'Tesseract OCR';
+            }
+          } catch (refineError: any) {
+            console.warn('[OCR] ⚠️ Refinamiento falló, usando Tesseract:', refineError.message);
             result = tesseractResult;
             method = 'Tesseract OCR';
           }
@@ -374,7 +393,7 @@ export const ocrDiagnostics = async (_req: Request, res: Response) => {
     tests: {} as Record<string, any>,
   };
 
-  // Test OpenAI
+  // Test OpenAI (text + vision)
   if (process.env.OPENAI_API_KEY) {
     try {
       const testOpenAI = new (await import('openai')).default({ apiKey: process.env.OPENAI_API_KEY });
@@ -386,6 +405,27 @@ export const ocrDiagnostics = async (_req: Request, res: Response) => {
       diag.tests.openai = { status: 'OK', response: r.choices[0]?.message?.content };
     } catch (e: any) {
       diag.tests.openai = { status: 'FAIL', message: e.message, code: e.status || e.code };
+    }
+
+    // Vision test: send a tiny 1x1 white PNG with text overlay request
+    try {
+      const testOpenAI = new (await import('openai')).default({ apiKey: process.env.OPENAI_API_KEY });
+      // Minimal 1x1 white PNG in base64
+      const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+      const r = await testOpenAI.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Describe this image in one word.' },
+            { type: 'image_url', image_url: { url: `data:image/png;base64,${tinyPng}` } },
+          ],
+        }],
+        max_tokens: 10,
+      });
+      diag.tests.openaiVision = { status: 'OK', response: r.choices[0]?.message?.content };
+    } catch (e: any) {
+      diag.tests.openaiVision = { status: 'FAIL', message: e.message, code: e.status || e.code };
     }
   }
 
