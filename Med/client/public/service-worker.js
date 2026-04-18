@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v3';
+const CACHE_NAME = 'medi-reminder-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -118,24 +118,21 @@ self.addEventListener('push', (event) => {
     body = parts.join('\n');
   }
 
-  // Construir acciones: los botones de la notificación
-  const actions = [];
-  if (notifData.reminderId) {
-    actions.push(
-      { action: 'take', title: '✅ Tomar' },
-      { action: 'snooze', title: '⏰ Posponer' }
-    );
-  }
+  // SIEMPRE incluir botones de acción (incluso sin reminderId, son útiles como UX)
+  const actions = [
+    { action: 'take', title: '✅ Tomar' },
+    { action: 'skip', title: '❌ Omitir' }
+  ];
 
   const options = {
     body: body,
     icon: data.icon || '/icons/icon-192x192.png',
     badge: data.badge || '/icons/badge-72x72.png',
     tag: data.tag || 'medication-reminder',
+    renotify: true,
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
     data: notifData,
-    // Actions MUST be set directly in showNotification, not mutated after
     actions: actions
   };
 
@@ -155,49 +152,61 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const notifData = event.notification.data || {};
 
-  if ((action === 'take' || action === '') && notifData.reminderId) {
-    // "Aceptar" o click general en la notificación → marcar como tomado
+  // Helper: get auth token from an open app window
+  async function getAuthToken(clients) {
+    if (clients.length === 0) return null;
+    try {
+      const msgChannel = new MessageChannel();
+      const tokenPromise = new Promise((resolve) => {
+        msgChannel.port1.onmessage = (e) => resolve(e.data?.token || null);
+        setTimeout(() => resolve(null), 3000);
+      });
+      clients[0].postMessage({ type: 'GET_AUTH_TOKEN' }, [msgChannel.port2]);
+      return await tokenPromise;
+    } catch { return null; }
+  }
+
+  // Helper: call API to update reminder status
+  async function updateReminder(status, authToken) {
+    if (!notifData.reminderId || !authToken) return false;
+    const apiBase = notifData.apiBaseUrl || self.location.origin;
+    const endpoint = status === 'taken' ? 'take' : 'skip';
+    try {
+      const response = await fetch(`${apiBase}/api/reminders/${notifData.reminderId}/${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ notes: `${status === 'taken' ? 'Tomado' : 'Omitido'} desde notificación` })
+      });
+      return response.ok;
+    } catch (err) {
+      console.error(`[SW] Error en ${endpoint}:`, err);
+      return false;
+    }
+  }
+
+  if (action === 'take' || action === '') {
+    // "Tomar" button or general click → mark as taken
     event.waitUntil(
       (async () => {
         try {
-          // Intentar obtener el token del cliente
           const allClients = await self.clients.matchAll({ type: 'window' });
-          let authToken = null;
+          const authToken = await getAuthToken(allClients);
 
-          // Pedir el token al primer cliente disponible
-          if (allClients.length > 0) {
-            const msgChannel = new MessageChannel();
-            const tokenPromise = new Promise((resolve) => {
-              msgChannel.port1.onmessage = (e) => resolve(e.data?.token || null);
-              setTimeout(() => resolve(null), 3000);
-            });
-            allClients[0].postMessage({ type: 'GET_AUTH_TOKEN' }, [msgChannel.port2]);
-            authToken = await tokenPromise;
-          }
+          if (authToken && notifData.reminderId) {
+            const ok = await updateReminder('taken', authToken);
 
-          if (authToken) {
-            // Llamar al API para marcar como tomado
-            const apiBase = notifData.apiBaseUrl || self.location.origin;
-            const response = await fetch(`${apiBase}/api/reminders/${notifData.reminderId}/take`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-              },
-              body: JSON.stringify({ notes: 'Aceptado desde notificación' })
-            });
-
-            if (response.ok) {
-              // Mostrar confirmación
+            if (ok) {
               await self.registration.showNotification('✅ ¡Medicamento registrado!', {
                 body: `${notifData.medicationName || 'Medicamento'} marcado como tomado.`,
                 icon: '/icons/icon-192x192.png',
-                tag: 'medication-taken-confirmation',
+                tag: 'medication-action-confirmation',
                 requireInteraction: false,
                 silent: true
               });
 
-              // Notificar al cliente para que refresque los datos (dashboard, gráficas)
               for (const client of allClients) {
                 client.postMessage({
                   type: 'MEDICATION_TAKEN',
@@ -207,23 +216,21 @@ self.addEventListener('notificationclick', (event) => {
                 });
               }
             } else {
-              console.error('[SW] Error marcando recordatorio como tomado:', response.status);
-              // Abrir la app si falla
-              if (allClients.length > 0) {
-                allClients[0].focus();
-              } else {
-                await self.clients.openWindow('/reminders');
-              }
+              // API call failed or no reminderId → open app
+              if (allClients.length > 0) allClients[0].focus();
+              else await self.clients.openWindow('/reminders');
             }
           } else {
-            // Sin token → abrir la app en la página de recordatorios
+            // No token → open app
             if (allClients.length > 0) {
               allClients[0].focus();
-              allClients[0].postMessage({
-                type: 'TAKE_MEDICATION',
-                reminderId: notifData.reminderId,
-                medicationId: notifData.medicationId
-              });
+              if (notifData.reminderId) {
+                allClients[0].postMessage({
+                  type: 'TAKE_MEDICATION',
+                  reminderId: notifData.reminderId,
+                  medicationId: notifData.medicationId
+                });
+              }
             } else {
               await self.clients.openWindow('/reminders');
             }
@@ -234,26 +241,48 @@ self.addEventListener('notificationclick', (event) => {
         }
       })()
     );
-  } else if (action === 'snooze') {
-    // Reprogramar notificación en 10 minutos
+  } else if (action === 'skip') {
+    // "Omitir" button → mark as skipped
     event.waitUntil(
-      new Promise((resolve) => {
-        setTimeout(async () => {
-          const snoozeBody = notifData.medicationName 
-            ? `⏰ Recordatorio pospuesto\n💊 ${notifData.medicationName} - ${notifData.dosage || ''}\n📋 ${notifData.instructions || 'Sin instrucciones'}`
-            : '⏰ Recordatorio pospuesto - ¡Es hora de tomar tu medicamento!';
+      (async () => {
+        try {
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          const authToken = await getAuthToken(allClients);
 
-          await self.registration.showNotification(
-            `💊 ${notifData.medicationName || 'MediReminder'}`, 
-            {
-              body: snoozeBody,
-              icon: '/icons/icon-192x192.png',
-              tag: 'medication-reminder-snooze',
-              requireInteraction: true,
-              vibrate: [200, 100, 200, 100, 200],
-              actions: [
-                { action: 'take', title: '✅ Aceptar' },
-                { action: 'snooze', title: '⏰ Posponer' }
+          if (authToken && notifData.reminderId) {
+            const ok = await updateReminder('skipped', authToken);
+
+            if (ok) {
+              await self.registration.showNotification('⏭️ Medicamento omitido', {
+                body: `${notifData.medicationName || 'Medicamento'} marcado como omitido.`,
+                icon: '/icons/icon-192x192.png',
+                tag: 'medication-action-confirmation',
+                requireInteraction: false,
+                silent: true
+              });
+
+              for (const client of allClients) {
+                client.postMessage({
+                  type: 'MEDICATION_SKIPPED',
+                  reminderId: notifData.reminderId,
+                  medicationId: notifData.medicationId
+                });
+              }
+            }
+          } else {
+            if (allClients.length > 0) allClients[0].focus();
+            else await self.clients.openWindow('/reminders');
+          }
+        } catch (err) {
+          console.error('[SW] Error en acción skip:', err);
+        }
+      })()
+    );
+  }
+});
+    );
+  }
+});
               ],
               data: notifData
             }

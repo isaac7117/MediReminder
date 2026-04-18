@@ -114,10 +114,18 @@ router.post('/test', authMiddleware, async (req: Request, res: Response) => {
     const results = await Promise.allSettled(
       subscriptions.map((sub: string) => 
         sendPushNotification(sub, {
-          title: '🔔 ¡Notificación de Prueba!',
-          body: 'Las notificaciones push están funcionando correctamente.',
+          title: '� Es hora de tomar: Ibuprofeno (prueba)',
+          body: '💊 500mg\n🕐 Hora programada: ahora\n📋 Tomar con comida',
           tag: 'test-notification',
-          data: { type: 'test', timestamp: new Date().toISOString() }
+          data: {
+            type: 'medication-reminder',
+            reminderId: 'test-reminder',
+            medicationName: 'Ibuprofeno (prueba)',
+            dosage: '500mg',
+            instructions: 'Tomar con comida',
+            scheduledTime: new Date().toISOString(),
+            apiBaseUrl: process.env.SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
+          }
         })
       )
     );
