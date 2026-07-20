@@ -69,5 +69,10 @@ export const authService = {
   getCareProfiles: async () => {
     const response = await apiClient.get('/auth/care-profiles');
     return response.data;
+  },
+
+  createCareProfile: async (data: { name: string; relationship: string }) => {
+    const response = await apiClient.post('/auth/care-profiles', data);
+    return response.data;
   }
 };

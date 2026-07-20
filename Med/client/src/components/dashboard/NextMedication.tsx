@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, Clock, Pill } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, Pill, User } from 'lucide-react';
 import { getTimeUntilReminder } from '../../utils/dateHelpers';
 import type { Reminder } from '../../types/reminder.types';
 
@@ -11,6 +11,9 @@ interface NextMedicationProps {
 
 const NextMedication: React.FC<NextMedicationProps> = ({ reminder, onTake, isLoading }) => {
   const [timeLeft, setTimeLeft] = useState<any>(null);
+
+  const careProfile = reminder?.medication?.careProfile;
+  const patientName = careProfile && careProfile.relationship !== 'self' ? careProfile.name : null;
 
   useEffect(() => {
     if (!reminder) return;
@@ -59,6 +62,12 @@ const NextMedication: React.FC<NextMedicationProps> = ({ reminder, onTake, isLoa
       </div>
 
       <div className="mb-6">
+        {patientName && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-lg bg-secondary-100 text-secondary-700 mb-2">
+            <User size={12} />
+            Para: {patientName}
+          </span>
+        )}
         <h2 className="text-2xl font-bold text-medical-dark">{reminder.medication?.name}</h2>
         <p className="text-sm text-gray-500 mt-1">{reminder.medication?.dosage}</p>
       </div>

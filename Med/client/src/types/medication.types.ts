@@ -1,6 +1,14 @@
+export interface MedicationCareProfile {
+  id: string;
+  name: string;
+  relationship: string;
+}
+
 export interface Medication {
   id: string;
   userId: string;
+  careProfileId?: string | null;
+  careProfile?: MedicationCareProfile | null;
   name: string;
   dosage: string;
   frequencyType: 'hourly' | 'daily' | 'weekly' | 'custom';
@@ -31,4 +39,5 @@ export interface CreateMedicationInput {
   instructions?: string;
   imageUrl?: string;
   prescriptionImageUrl?: string;
+  careProfileId?: string | null;
 }

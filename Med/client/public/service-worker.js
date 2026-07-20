@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medi-reminder-v7';
+const CACHE_NAME = 'medi-reminder-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html'
@@ -117,7 +117,7 @@ self.addEventListener('push', (event) => {
 
   const actions = [
     { action: 'take', title: 'Tomar' },
-    { action: 'skip', title: 'Omitir' }
+    { action: 'snooze', title: 'Posponer 15 min' }
   ];
 
   const options = {
@@ -169,7 +169,7 @@ async function getApiUrlFromCache() {
   return null;
 }
 
-// Helper: call API to update reminder status
+// Helper: call API to update reminder status (take / skip)
 async function updateReminder(notifData, status, authToken, apiBaseUrl) {
   if (!notifData.reminderId || !authToken || !apiBaseUrl) return false;
   const endpoint = status === 'taken' ? 'take' : 'skip';
@@ -186,6 +186,26 @@ async function updateReminder(notifData, status, authToken, apiBaseUrl) {
     return response.ok;
   } catch (err) {
     console.error(`[SW] Error en ${endpoint}:`, err);
+    return false;
+  }
+}
+
+// Helper: call API to snooze (postpone) a reminder by N minutes
+async function snoozeReminderApi(notifData, minutes, authToken, apiBaseUrl) {
+  if (!notifData.reminderId || !authToken || !apiBaseUrl) return false;
+  try {
+    const response = await fetch(`${apiBaseUrl}/reminders/${notifData.reminderId}/snooze`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ minutes })
+    });
+    console.log(`[SW] snooze response: ${response.status}`);
+    return response.ok;
+  } catch (err) {
+    console.error('[SW] Error en snooze:', err);
     return false;
   }
 }
@@ -222,12 +242,14 @@ self.addEventListener('notificationclick', (event) => {
               });
 
               for (const client of allClients) {
-                client.postMessage({
-                  type: 'MEDICATION_TAKEN',
-                  reminderId: notifData.reminderId,
-                  medicationId: notifData.medicationId,
-                  medicationName: notifData.medicationName
-                });
+                try {
+                  client.postMessage({
+                    type: 'MEDICATION_TAKEN',
+                    reminderId: notifData.reminderId,
+                    medicationId: notifData.medicationId,
+                    medicationName: notifData.medicationName
+                  });
+                } catch (e) { /* COOP may block postMessage */ }
               }
               return;
             }
@@ -237,6 +259,50 @@ self.addEventListener('notificationclick', (event) => {
           else await self.clients.openWindow('/reminders');
         } catch (err) {
           console.error('[SW] Error en acción take:', err);
+          await self.clients.openWindow('/reminders');
+        }
+      })()
+    );
+  } else if (action === 'snooze') {
+    event.waitUntil(
+      (async () => {
+        try {
+          const authToken = await getAuthTokenFromCache();
+          const apiBaseUrl = await getApiUrlFromCache();
+          const allClients = await self.clients.matchAll({ type: 'window' });
+
+          console.log('[SW] Snooze: token?', !!authToken, 'apiUrl?', apiBaseUrl, 'reminderId?', notifData.reminderId);
+
+          if (authToken && apiBaseUrl && notifData.reminderId) {
+            const ok = await snoozeReminderApi(notifData, 15, authToken, apiBaseUrl);
+
+            if (ok) {
+              await self.registration.showNotification('Medicamento pospuesto', {
+                body: `${notifData.medicationName || 'Medicamento'} se recordará en 15 minutos.`,
+                icon: '/icons/icon-192x192.png',
+                tag: 'medication-confirmation-snoozed',
+                requireInteraction: false,
+                silent: true
+              });
+
+              for (const client of allClients) {
+                try {
+                  client.postMessage({
+                    type: 'MEDICATION_SNOOZED',
+                    reminderId: notifData.reminderId,
+                    medicationId: notifData.medicationId,
+                    medicationName: notifData.medicationName
+                  });
+                } catch (e) { /* COOP may block postMessage */ }
+              }
+              return;
+            }
+          }
+          // Fallback: open the app so the user can postpone manually
+          if (allClients.length > 0) allClients[0].focus();
+          else await self.clients.openWindow('/reminders');
+        } catch (err) {
+          console.error('[SW] Error en acción snooze:', err);
           await self.clients.openWindow('/reminders');
         }
       })()
@@ -264,11 +330,13 @@ self.addEventListener('notificationclick', (event) => {
               });
 
               for (const client of allClients) {
-                client.postMessage({
-                  type: 'MEDICATION_SKIPPED',
-                  reminderId: notifData.reminderId,
-                  medicationId: notifData.medicationId
-                });
+                try {
+                  client.postMessage({
+                    type: 'MEDICATION_SKIPPED',
+                    reminderId: notifData.reminderId,
+                    medicationId: notifData.medicationId
+                  });
+                } catch (e) { /* COOP may block postMessage */ }
               }
               return;
             }

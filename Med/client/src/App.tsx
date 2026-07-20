@@ -44,6 +44,12 @@ function App() {
           console.log('[App] Medicamento omitido desde notificación:', event.data.medicationName);
           window.dispatchEvent(new CustomEvent('medication-skipped', { detail: event.data }));
         }
+
+        // El SW confirma que un medicamento fue pospuesto
+        if (type === 'MEDICATION_SNOOZED') {
+          console.log('[App] Medicamento pospuesto desde notificación:', event.data.medicationName);
+          window.dispatchEvent(new CustomEvent('medication-snoozed', { detail: event.data }));
+        }
       });
     }
   }, []);

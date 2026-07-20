@@ -8,7 +8,7 @@ import { notificationService } from '../services/notification.service';
 import { Calendar, RefreshCw, Bell, BellRing, BellOff, Send, Info, CheckCircle } from 'lucide-react';
 
 const RemindersPage: React.FC = () => {
-  const { reminders, isLoading, fetchReminders, takeReminder, skipReminder } = useReminders();
+  const { reminders, isLoading, fetchReminders, takeReminder, skipReminder, snoozeReminder } = useReminders();
   const { showNotification } = useNotifications();
   const [filter, setFilter] = React.useState<'all' | 'pending' | 'taken' | 'missed'>('all');
   const [isRegenerating, setIsRegenerating] = React.useState(false);
@@ -100,6 +100,16 @@ const RemindersPage: React.FC = () => {
       showNotification('success', '¡Recordatorio omitido!');
     } catch (error: any) {
       showNotification('error', error.message || 'Error al omitir recordatorio');
+    }
+  };
+
+  const handleSnooze = async (id: string) => {
+    try {
+      await snoozeReminder(id, 15);
+      showNotification('success', 'Recordatorio pospuesto 15 minutos.');
+      fetchReminders(filter === 'all' ? undefined : filter);
+    } catch (error: any) {
+      showNotification('error', error.message || 'Error al posponer recordatorio');
     }
   };
 
@@ -335,6 +345,7 @@ const RemindersPage: React.FC = () => {
                   reminder={reminder}
                   onTake={handleTake}
                   onSkip={handleSkip}
+                  onSnooze={handleSnooze}
                   isLoading={isLoading}
                 />
               ))}

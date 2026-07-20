@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import PrescriptionScanner from '../components/scanner/PrescriptionScanner';
+import PatientSelector from '../components/common/PatientSelector';
 import { useMedications } from '../hooks/useMedications';
 import { useNotifications } from '../hooks/useNotifications';
 import { ArrowLeft, Plus, Wand2, CheckCircle2, AlertCircle, X } from 'lucide-react';
@@ -56,6 +57,7 @@ const ScannerPage: React.FC = () => {
 
   const [geminiResult, setGeminiResult] = useState<GeminiResult | null>(null);
   const [isCreatingAuto, setIsCreatingAuto] = useState(false);
+  const [careProfileId, setCareProfileId] = useState('');
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -129,7 +131,8 @@ const ScannerPage: React.FC = () => {
 
       // Llamar endpoint de auto-creación
       const response = await api.post('/auto-medications/from-recipe', {
-        medications: medicationsToCreate
+        medications: medicationsToCreate,
+        careProfileId: careProfileId || null
       });
 
       console.log('[Gemini]  Respuesta:', response.data);
@@ -209,7 +212,8 @@ const ScannerPage: React.FC = () => {
         // Enviar fechas como strings YYYY-MM-DD
         startDate: formData.startDate,
         endDate: formData.endDate || null,
-        frequencyDays: formData.frequencyDays || []
+        frequencyDays: formData.frequencyDays || [],
+        careProfileId: careProfileId || null
       };
 
       console.log('[FORM] → Sending payload:', JSON.stringify(payload, null, 2));
@@ -243,10 +247,19 @@ const ScannerPage: React.FC = () => {
             Volver a Medicamentos
           </button>
 
+          {/* Selector de paciente (modo cuidador) */}
+          <div className="mb-6">
+            <PatientSelector
+              value={careProfileId}
+              onChange={setCareProfileId}
+              label="¿A qué paciente va dirigida esta receta?"
+            />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Escáner - Opcional, no bloquea el formulario */}
             <div>
-              <PrescriptionScanner onResultReceived={handleOCRResult} />
+              <PrescriptionScanner onResultReceived={handleOCRResult} careProfileId={careProfileId} />
             </div>
 
             {/* Formulario - Enfoque principal */}

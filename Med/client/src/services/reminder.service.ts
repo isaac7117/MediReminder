@@ -30,6 +30,11 @@ export const reminderService = {
     return response.data;
   },
 
+  snooze: async (id: string, minutes: number = 15) => {
+    const response = await apiClient.put(`/reminders/${id}/snooze`, { minutes });
+    return response.data;
+  },
+
   getAdherence: async (days?: number) => {
     const response = await apiClient.get('/reminders/adherence/stats', {
       params: { days }

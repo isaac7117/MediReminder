@@ -2,6 +2,14 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { sendNotificationToSubscriptions } from '../services/notification.service.js';
 import { regenerateAllReminders, generateRemindersForMedication } from '../services/scheduler.service.js';
+import { notifiedReminderIds } from '../services/notification-state.js';
+
+// Recordatorio con el medicamento y el perfil del paciente (para mostrar a quién pertenece)
+const reminderInclude = {
+  medication: {
+    include: { careProfile: true }
+  }
+} as const;
 
 const prisma = new PrismaClient();
 
@@ -47,9 +55,7 @@ export const getReminders = async (req: Request, res: Response) => {
 
     const reminders = await prisma.reminder.findMany({
       where: whereCondition,
-      include: {
-        medication: true
-      },
+      include: reminderInclude,
       orderBy: { scheduledTime: 'asc' }
     });
 
@@ -85,9 +91,7 @@ export const getTodayReminders = async (req: Request, res: Response) => {
           lt: tomorrow
         }
       },
-      include: {
-        medication: true
-      },
+      include: reminderInclude,
       orderBy: { scheduledTime: 'asc' }
     });
 
@@ -119,9 +123,7 @@ export const getUpcomingReminders = async (req: Request, res: Response) => {
           lte: futureDate
         }
       },
-      include: {
-        medication: true
-      },
+      include: reminderInclude,
       orderBy: { scheduledTime: 'asc' }
     });
 
@@ -156,9 +158,7 @@ export const takeReminder = async (req: Request, res: Response) => {
         takenAt: new Date(),
         notes
       },
-      include: {
-        medication: true
-      }
+      include: reminderInclude
     });
 
     res.json({
@@ -194,13 +194,64 @@ export const skipReminder = async (req: Request, res: Response) => {
         status: 'skipped',
         notes: reason
       },
-      include: {
-        medication: true
-      }
+      include: reminderInclude
     });
 
     res.json({
       message: 'Recordatorio omitido',
+      reminder: updated
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Posponer un recordatorio: reprograma su hora a +N minutos (15 por defecto)
+ * y lo mantiene pendiente. Elimina su ID del set de "ya notificados" para que
+ * el cron lo vuelva a enviar a la nueva hora.
+ */
+export const snoozeReminder = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+    const { minutes } = req.body;
+
+    const parsedMinutes = Number(minutes);
+    const snoozeMinutes = Number.isFinite(parsedMinutes) && parsedMinutes > 0 && parsedMinutes <= 240
+      ? Math.round(parsedMinutes)
+      : 15;
+
+    const reminder = await prisma.reminder.findFirst({
+      where: { id, userId }
+    });
+
+    if (!reminder) {
+      return res.status(404).json({ message: 'Recordatorio no encontrado' });
+    }
+
+    if (reminder.status !== 'pending') {
+      return res.status(400).json({ message: `No se puede posponer un recordatorio con estado '${reminder.status}'` });
+    }
+
+    const newTime = new Date(Date.now() + snoozeMinutes * 60 * 1000);
+
+    const updated = await prisma.reminder.update({
+      where: { id },
+      data: {
+        scheduledTime: newTime,
+        status: 'pending',
+        takenAt: null,
+        notes: `Pospuesto ${snoozeMinutes} min`
+      },
+      include: reminderInclude
+    });
+
+    // Permitir que el cron vuelva a notificar este recordatorio a la nueva hora
+    notifiedReminderIds.delete(id);
+
+    res.json({
+      message: `Recordatorio pospuesto ${snoozeMinutes} minutos`,
       reminder: updated
     });
   } catch (error: any) {

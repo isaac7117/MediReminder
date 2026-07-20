@@ -4,17 +4,27 @@ import Navbar from '../components/common/Navbar';
 import MedicationCard from '../components/medications/MedicationCard';
 import { useMedications } from '../hooks/useMedications';
 import { useNotifications } from '../hooks/useNotifications';
-import { Plus, Scan, Pill } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { useCareProfiles } from '../hooks/useCareProfiles';
+import { Plus, Scan, Pill, Users } from 'lucide-react';
 
 const MedicationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { medications, isLoading, fetchMedications, deleteMedication } = useMedications();
   const { showNotification } = useNotifications();
+  const { user } = useAuth();
+  const isCaregiver = user?.role === 'caregiver';
+  const { careProfiles } = useCareProfiles({ autoFetch: isCaregiver });
   const [filter, setFilter] = React.useState<'active' | 'all'>('active');
+  const [patientFilter, setPatientFilter] = React.useState<string>('all');
 
   React.useEffect(() => {
     fetchMedications(filter === 'active');
   }, [filter]);
+
+  const visibleMedications = patientFilter === 'all'
+    ? medications
+    : medications.filter(m => m.careProfileId === patientFilter);
 
   const handleEdit = (medication: any) => {
     navigate(`/medications/${medication.id}/edit`);
@@ -61,7 +71,7 @@ const MedicationsPage: React.FC = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6 items-center">
             {(['active', 'all'] as const).map(status => (
               <button
                 key={status}
@@ -75,6 +85,23 @@ const MedicationsPage: React.FC = () => {
                 {status === 'active' ? 'Activos' : 'Todos'}
               </button>
             ))}
+
+            {/* Patient filter (caregiver mode) */}
+            {isCaregiver && careProfiles.length > 0 && (
+              <div className="flex items-center gap-2 ml-auto">
+                <Users size={16} className="text-secondary-500" />
+                <select
+                  value={patientFilter}
+                  onChange={(e) => setPatientFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white text-gray-700 focus:border-secondary-300 focus:ring-2 focus:ring-secondary-100 outline-none"
+                >
+                  <option value="all">Todos los pacientes</option>
+                  {careProfiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Medications Grid */}
@@ -85,7 +112,7 @@ const MedicationsPage: React.FC = () => {
               </div>
               <p className="mt-4 text-sm text-gray-500">Cargando medicamentos...</p>
             </div>
-          ) : medications.length === 0 ? (
+          ) : visibleMedications.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-medical border border-gray-100 p-16 text-center">
               <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
                 <Pill className="text-primary-400" size={28} />
@@ -100,7 +127,7 @@ const MedicationsPage: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {medications.map(medication => (
+              {visibleMedications.map(medication => (
                 <MedicationCard
                   key={medication.id}
                   medication={medication}

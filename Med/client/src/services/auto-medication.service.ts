@@ -2,9 +2,10 @@ import apiClient from './api';
 
 export const autoMedicationService = {
   // Crear medicamentos automáticamente desde receta analizada con Gemini
-  createFromRecipe: async (medications: any[]) => {
+  createFromRecipe: async (medications: any[], careProfileId?: string | null) => {
     const response = await apiClient.post('/auto-medications/from-recipe', {
-      medications
+      medications,
+      careProfileId: careProfileId || null
     });
     return response.data;
   },

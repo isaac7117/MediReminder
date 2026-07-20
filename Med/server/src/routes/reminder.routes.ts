@@ -5,6 +5,7 @@ import {
   getUpcomingReminders,
   takeReminder,
   skipReminder,
+  snoozeReminder,
   getAdherence,
   regenerateReminders
 } from '../controllers/reminder.controller.js';
@@ -19,6 +20,7 @@ router.get('/today', getTodayReminders);
 router.get('/upcoming', getUpcomingReminders);
 router.put('/:id/take', takeReminder);
 router.put('/:id/skip', skipReminder);
+router.put('/:id/snooze', snoozeReminder);
 router.get('/adherence/stats', getAdherence);
 router.post('/regenerate', regenerateReminders);
 

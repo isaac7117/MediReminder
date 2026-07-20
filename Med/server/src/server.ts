@@ -5,6 +5,7 @@ import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
 import { sendNotificationToSubscriptions, sendPushNotification } from './services/notification.service.js';
 import { regenerateAllReminders, markMissedReminders } from './services/scheduler.service.js';
+import { notifiedReminderIds } from './services/notification-state.js';
 import { runOcrFineTuningJob, refreshOcrTrainingJobs, loadLatestFineTunedModel } from './services/ocr-training.service.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware.js';
 
@@ -120,9 +121,10 @@ app.get('/api/notifications/diagnostics', async (req: Request, res: Response) =>
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
-// Track which reminders have already been notified in this server session
-// Cleared on restart — which is good: after cold start we re-check recent reminders
-const notifiedReminderIds = new Set<string>();
+// Track which reminders have already been notified in this server session.
+// Cleared on restart — which is good: after cold start we re-check recent reminders.
+// Definido en ./services/notification-state.js para que el endpoint "posponer"
+// pueda eliminar un ID y forzar el reenvío a la nueva hora.
 
 /**
  * Sends push notifications for pending reminders within a time window.
@@ -161,7 +163,10 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
   for (const rem of toProcess) {
     try {
       const user = await prisma.user.findUnique({ where: { id: rem.userId } });
-      const medication = await prisma.medication.findUnique({ where: { id: rem.medicationId } });
+      const medication = await prisma.medication.findUnique({
+        where: { id: rem.medicationId },
+        include: { careProfile: true }
+      });
 
       // Clean up orphaned reminder
       if (!user || !medication) {
@@ -176,10 +181,21 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
       const timeStr = scheduledTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTz });
 
       if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
-        const bodyParts = [
-          `Dosis: ${medication.dosage}`,
-          `Hora programada: ${timeStr}`,
-        ];
+        // Para cuidadores: mostrar a qué paciente pertenece el medicamento.
+        // El perfil "self" (uso personal) no agrega nombre.
+        const careProfile = (medication as any).careProfile;
+        const patientName = careProfile && careProfile.relationship !== 'self'
+          ? careProfile.name
+          : '';
+
+        const title = patientName
+          ? `${patientName}: es hora de ${medication.name}`
+          : `Es hora de tomar ${medication.name}`;
+
+        const bodyParts: string[] = [];
+        if (patientName) bodyParts.push(`Paciente: ${patientName}`);
+        bodyParts.push(`Dosis: ${medication.dosage}`);
+        bodyParts.push(`Hora programada: ${timeStr}`);
         if (medication.instructions) {
           bodyParts.push(medication.instructions);
         }
@@ -187,7 +203,7 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
         const results = await Promise.allSettled(
           user.pushSubscriptions.map((sub: string) => {
             return sendPushNotification(sub, {
-              title: `Es hora de tomar ${medication.name}`,
+              title,
               body: bodyParts.join('\n'),
               tag: `reminder-${rem.id}`,
               data: {
@@ -195,6 +211,7 @@ async function sendPendingNotifications(lookbackMinutes: number, lookaheadMinute
                 reminderId: rem.id,
                 medicationId: medication.id,
                 medicationName: medication.name,
+                patientName,
                 dosage: medication.dosage,
                 instructions: medication.instructions || '',
                 scheduledTime: rem.scheduledTime.toISOString(),

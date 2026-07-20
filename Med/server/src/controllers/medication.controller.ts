@@ -19,7 +19,8 @@ export const createMedication = async (req: Request, res: Response) => {
       isContinuous,
       instructions,
       imageUrl,
-      prescriptionImageUrl
+      prescriptionImageUrl,
+      careProfileId
     } = req.body;
 
     if (!name || !dosage || !frequencyType || !frequencyValue) {
@@ -56,7 +57,8 @@ export const createMedication = async (req: Request, res: Response) => {
         isContinuous: isContinuous || false,
         instructions,
         imageUrl,
-        prescriptionImageUrl
+        prescriptionImageUrl,
+        ...(careProfileId ? { careProfileId } : {})
       }
     });
 
@@ -89,6 +91,7 @@ export const getMedications = async (req: Request, res: Response) => {
 
     const medications = await prisma.medication.findMany({
       where: whereCondition,
+      include: { careProfile: true },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -104,7 +107,8 @@ export const getMedicationById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const medication = await prisma.medication.findFirst({
-      where: { id, userId }
+      where: { id, userId },
+      include: { careProfile: true }
     });
 
     if (!medication) {
@@ -133,7 +137,8 @@ export const updateMedication = async (req: Request, res: Response) => {
       instructions,
       imageUrl,
       prescriptionImageUrl,
-      active
+      active,
+      careProfileId
     } = req.body;
 
     const medication = await prisma.medication.findFirst({
@@ -163,7 +168,8 @@ export const updateMedication = async (req: Request, res: Response) => {
         ...(instructions !== undefined && { instructions }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(prescriptionImageUrl !== undefined && { prescriptionImageUrl }),
-        ...(active !== undefined && { active })
+        ...(active !== undefined && { active }),
+        ...(careProfileId !== undefined && { careProfileId: careProfileId || null })
       }
     });
 

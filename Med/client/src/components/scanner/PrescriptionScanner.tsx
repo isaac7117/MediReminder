@@ -26,11 +26,13 @@ interface FeedbackMedication {
 interface PrescriptionScannerProps {
   onResultReceived: (result: OCRResult) => void;
   onAutoCreated?: (medications: any) => void;
+  /** Paciente al que se asignarán los medicamentos (modo cuidador) */
+  careProfileId?: string;
 }
 
 const isMobileDevice = () => /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultReceived, onAutoCreated }) => {
+const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultReceived, onAutoCreated, careProfileId }) => {
   const isMobile = useMemo(() => isMobileDevice(), []);
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoCreating, setIsAutoCreating] = useState(false);
@@ -169,7 +171,7 @@ const PrescriptionScanner: React.FC<PrescriptionScannerProps> = ({ onResultRecei
 
       console.log('[SCANNER]  Enviando medicamentos:', formattedMeds);
       
-      const result = await autoMedicationService.createFromRecipe(formattedMeds);
+      const result = await autoMedicationService.createFromRecipe(formattedMeds, careProfileId);
       console.log('[SCANNER]  Medicamentos creados:', result);
 
       showNotification('success', `${result.count.medications} medicamentos y ${result.count.reminders} recordatorios creados automáticamente`);

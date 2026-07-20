@@ -36,3 +36,22 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const API_TIMEOUT = 30000; // 30 seconds
+
+// Relaciones para los perfiles de pacientes (modo cuidador)
+export const RELATIONSHIPS = [
+  { value: 'grandmother', label: 'Abuela' },
+  { value: 'grandfather', label: 'Abuelo' },
+  { value: 'mother', label: 'Mamá' },
+  { value: 'father', label: 'Papá' },
+  { value: 'aunt', label: 'Tía' },
+  { value: 'uncle', label: 'Tío' },
+  { value: 'spouse', label: 'Esposo/a' },
+  { value: 'child', label: 'Hijo/a' },
+  { value: 'sibling', label: 'Hermano/a' },
+  { value: 'other', label: 'Otro' },
+];
+
+export const RELATIONSHIP_LABELS: Record<string, string> = {
+  self: 'Yo',
+  ...Object.fromEntries(RELATIONSHIPS.map(r => [r.value, r.label]))
+};

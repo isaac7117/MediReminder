@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
+import PatientSelector from '../components/common/PatientSelector';
 import { useMedications } from '../hooks/useMedications';
 import { useNotifications } from '../hooks/useNotifications';
 import { medicationService } from '../services/medication.service';
@@ -18,6 +19,7 @@ interface FormData {
   isContinuous: boolean;
   instructions: string;
   active: boolean;
+  careProfileId: string;
 }
 
 const MedicationFormPage: React.FC = () => {
@@ -39,7 +41,8 @@ const MedicationFormPage: React.FC = () => {
     endDate: '',
     isContinuous: true,
     instructions: '',
-    active: true
+    active: true,
+    careProfileId: ''
   });
 
   // Load medication data when in edit mode
@@ -65,7 +68,8 @@ const MedicationFormPage: React.FC = () => {
         endDate: med.endDate ? new Date(med.endDate).toLocaleDateString('en-CA') : '',
         isContinuous: med.isContinuous ?? true,
         instructions: med.instructions || '',
-        active: med.active ?? true
+        active: med.active ?? true,
+        careProfileId: med.careProfileId || ''
       });
     } catch (error: any) {
       showNotification('error', 'No se pudo cargar el medicamento');
@@ -135,7 +139,8 @@ const MedicationFormPage: React.FC = () => {
         frequencyDays: formData.frequencyDays.map(Number),
         // Enviar las fechas como strings YYYY-MM-DD (el servidor las interpreta en zona del usuario)
         startDate: formData.startDate,
-        endDate: formData.endDate || null
+        endDate: formData.endDate || null,
+        careProfileId: formData.careProfileId || null
       };
 
       if (isEditMode && id) {
@@ -200,6 +205,12 @@ const MedicationFormPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-medical border border-gray-100 p-6 md:p-8 space-y-6">
+            {/* Patient selector (caregiver mode) */}
+            <PatientSelector
+              value={formData.careProfileId}
+              onChange={(id) => setFormData(prev => ({ ...prev, careProfileId: id }))}
+            />
+
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

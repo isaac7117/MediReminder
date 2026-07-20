@@ -5,6 +5,7 @@ import DashboardStats from '../components/dashboard/DashboardStats';
 import NextMedication from '../components/dashboard/NextMedication';
 import AdherenceChart from '../components/dashboard/AdherenceChart';
 import ReminderCard from '../components/reminders/ReminderCard';
+import InstallAppButton from '../components/common/InstallAppButton';
 import { useMedications } from '../hooks/useMedications';
 import { useReminders } from '../hooks/useReminders';
 import { Plus, Scan, TrendingUp } from 'lucide-react';
@@ -18,6 +19,7 @@ const DashboardPage: React.FC = () => {
     isLoading: remLoading,
     takeReminder,
     skipReminder,
+    snoozeReminder,
     fetchTodayReminders
   } = useReminders();
 
@@ -37,6 +39,11 @@ const DashboardPage: React.FC = () => {
 
   const handleSkipReminder = async (id: string) => {
     await skipReminder(id);
+  };
+
+  const handleSnoozeReminder = async (id: string) => {
+    await snoozeReminder(id, 15);
+    fetchTodayReminders();
   };
 
   return (
@@ -85,6 +92,7 @@ const DashboardPage: React.FC = () => {
                         reminder={reminder}
                         onTake={handleTakeReminder}
                         onSkip={handleSkipReminder}
+                        onSnooze={handleSnoozeReminder}
                         isLoading={remLoading}
                       />
                     ))}
@@ -139,6 +147,9 @@ const DashboardPage: React.FC = () => {
                   <Scan size={18} />
                   Escanear Receta
                 </button>
+
+                {/* Instalar app (PWA) — solo se muestra si es instalable */}
+                <InstallAppButton />
               </div>
             </div>
           </div>

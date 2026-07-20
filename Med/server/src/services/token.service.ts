@@ -229,3 +229,18 @@ export const getCareProfiles = async (userId: string) => {
     orderBy: { createdAt: 'asc' }
   });
 };
+
+export const createCareProfile = async (
+  userId: string,
+  data: { name: string; relationship: string }
+) => {
+  const existingCount = await prisma.careProfile.count({ where: { userId } });
+  return prisma.careProfile.create({
+    data: {
+      userId,
+      name: data.name.trim(),
+      relationship: data.relationship,
+      isDefault: existingCount === 0
+    }
+  });
+};

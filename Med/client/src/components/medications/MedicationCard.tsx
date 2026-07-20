@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, Calendar, Pill, Clock } from 'lucide-react';
+import { Edit2, Trash2, Calendar, Pill, Clock, User } from 'lucide-react';
 import { formatDate } from '../../utils/dateHelpers';
 import type { Medication } from '../../types/medication.types';
 
@@ -21,6 +21,9 @@ const MedicationCard: React.FC<MedicationCardProps> = ({
     : medication.frequencyType === 'weekly'
     ? `${medication.frequencyDays.length} días por semana`
     : `Cada ${medication.frequencyValue} horas`;
+
+  const careProfile = medication.careProfile;
+  const patientName = careProfile && careProfile.relationship !== 'self' ? careProfile.name : null;
 
   return (
     <div className={`bg-white rounded-2xl shadow-medical border border-gray-100 overflow-hidden hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 ${
@@ -50,6 +53,15 @@ const MedicationCard: React.FC<MedicationCardProps> = ({
             <span className="badge-neutral">Inactivo</span>
           )}
         </div>
+
+        {patientName && (
+          <div className="mb-3">
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-lg bg-secondary-50 text-secondary-700 border border-secondary-100">
+              <User size={12} />
+              {patientName}
+            </span>
+          </div>
+        )}
 
         {/* Info */}
         <div className="bg-gray-50 rounded-xl p-3 mb-3 space-y-1.5">

@@ -4,15 +4,15 @@ import { generateRemindersForMedication } from '../services/scheduler.service.js
 
 const prisma = new PrismaClient();
 
-/** Parse a date string safely: accepts YYYY-MM-DD or ISO strings */
+
 function parseDateSafe(dateInput: any): Date {
   if (!dateInput) return new Date();
   const str = String(dateInput);
-  // If it's a YYYY-MM-DD string, interpret as noon UTC to avoid off-by-one
+  
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return new Date(`${str}T12:00:00Z`);
   }
-  // If it's already an ISO string, parse directly
+  
   const d = new Date(str);
   return isNaN(d.getTime()) ? new Date() : d;
 }
@@ -20,7 +20,7 @@ function parseDateSafe(dateInput: any): Date {
 export const createMedicationsFromRecipe = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
-    const { medications } = req.body;
+    const { medications, careProfileId } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Usuario no autenticado' });
@@ -30,7 +30,7 @@ export const createMedicationsFromRecipe = async (req: Request, res: Response) =
       return res.status(400).json({ message: 'No hay medicamentos para crear' });
     }
 
-    console.log(`[AUTO] 💊 Creando ${medications.length} medicamentos automáticamente...`);
+    console.log(`[AUTO]  Creando ${medications.length} medicamentos automáticamente...`);
 
     const createdMedications: any[] = [];
     let totalReminders = 0;
@@ -50,12 +50,13 @@ export const createMedicationsFromRecipe = async (req: Request, res: Response) =
             frequencyType: med.frequencyType || 'daily',
             frequencyValue: med.frequencyValue || 1,
             frequencyTimes: med.frequencyTimes || ['09:00'],
-            frequencyDays: med.frequencyDays || []
+            frequencyDays: med.frequencyDays || [],
+            ...((med.careProfileId || careProfileId) ? { careProfileId: med.careProfileId || careProfileId } : {})
           }
         });
 
         createdMedications.push(medication);
-        console.log(`[AUTO] ✅ Medicamento creado: ${medication.name}`);
+        console.log(`[AUTO]  Medicamento creado: ${medication.name}`);
 
         // Generar recordatorios usando el scheduler timezone-aware
         try {
@@ -65,20 +66,20 @@ export const createMedicationsFromRecipe = async (req: Request, res: Response) =
             medication.startDate,
             medication.endDate || undefined
           );
-          console.log(`[AUTO] 🔔 Recordatorios generados para ${medication.name}`);
+          console.log(`[AUTO]  Recordatorios generados para ${medication.name}`);
           // Count generated reminders
           const count = await prisma.reminder.count({ where: { medicationId: medication.id, status: 'pending' } });
           totalReminders += count;
         } catch (remErr: any) {
-          console.error(`[AUTO] ⚠️ Error generando recordatorios para ${medication.name}:`, remErr.message);
+          console.error(`[AUTO]  Error generando recordatorios para ${medication.name}:`, remErr.message);
         }
       } catch (medError: any) {
-        console.error(`[AUTO] ❌ Error creando ${med.name}:`, medError.message);
+        console.error(`[AUTO]  Error creando ${med.name}:`, medError.message);
       }
     }
 
     res.json({
-      message: `✅ ${createdMedications.length} medicamentos y ${totalReminders} recordatorios creados automáticamente`,
+      message: ` ${createdMedications.length} medicamentos y ${totalReminders} recordatorios creados automáticamente`,
       medications: createdMedications,
       count: {
         medications: createdMedications.length,
@@ -97,7 +98,7 @@ export const createMedicationsFromRecipe = async (req: Request, res: Response) =
 export const createMedicationWithReminders = async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
-    const { name, dosage, instructions, startDate, endDate, isContinuous, frequencyType, frequencyValue, frequencyTimes, frequencyDays } = req.body;
+    const { name, dosage, instructions, startDate, endDate, isContinuous, frequencyType, frequencyValue, frequencyTimes, frequencyDays, careProfileId } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Usuario no autenticado' });
@@ -107,7 +108,7 @@ export const createMedicationWithReminders = async (req: Request, res: Response)
       return res.status(400).json({ message: 'El nombre del medicamento es requerido' });
     }
 
-    console.log(`[AUTO] 💊 Creando medicamento con recordatorios: ${name}`);
+    console.log(`[AUTO]  Creando medicamento con recordatorios: ${name}`);
 
     // Crear medicamento
     const medication = await prisma.medication.create({
@@ -122,11 +123,12 @@ export const createMedicationWithReminders = async (req: Request, res: Response)
         frequencyType,
         frequencyValue,
         frequencyTimes,
-        frequencyDays: frequencyDays || []
+        frequencyDays: frequencyDays || [],
+        ...(careProfileId ? { careProfileId } : {})
       }
     });
 
-    console.log(`[AUTO] ✅ Medicamento creado: ${medication.name} (ID: ${medication.id})`);
+    console.log(`[AUTO]  Medicamento creado: ${medication.name} (ID: ${medication.id})`);
 
     // Generar recordatorios usando el scheduler timezone-aware
     let reminderCount = 0;
@@ -138,13 +140,13 @@ export const createMedicationWithReminders = async (req: Request, res: Response)
         medication.endDate || undefined
       );
       reminderCount = await prisma.reminder.count({ where: { medicationId: medication.id, status: 'pending' } });
-      console.log(`[AUTO] 🔔 ${reminderCount} recordatorios generados para ${name}`);
+      console.log(`[AUTO]  ${reminderCount} recordatorios generados para ${name}`);
     } catch (remErr: any) {
-      console.error(`[AUTO] ⚠️ Error generando recordatorios para ${name}:`, remErr.message);
+      console.error(`[AUTO]  Error generando recordatorios para ${name}:`, remErr.message);
     }
 
     res.json({
-      message: `✅ Medicamento creado con ${reminderCount} recordatorios`,
+      message: ` Medicamento creado con ${reminderCount} recordatorios`,
       medication,
       reminders: reminderCount
     });

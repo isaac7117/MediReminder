@@ -37,6 +37,10 @@ const OnboardingPage: React.FC = () => {
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActivatingNotifs, setIsActivatingNotifs] = useState(false);
+  const [notifsActivated, setNotifsActivated] = useState(false);
+
+  // Si el navegador no soporta notificaciones no podemos obligar a activarlas
+  const notifsSupported = notificationService.getStatus().notificationsSupported;
 
   const steps: Step[] = role === 'caregiver'
     ? ['welcome', 'role', 'careProfiles', 'legal', 'notifications', 'done']
@@ -104,8 +108,10 @@ const OnboardingPage: React.FC = () => {
       } else {
         showNotification('success', 'Notificaciones activadas. Funcionarán mientras tengas la app abierta.');
       }
+      setNotifsActivated(true);
     } catch (error: any) {
       showNotification('error', error.message || 'Error al activar notificaciones');
+      setNotifsActivated(false);
     } finally {
       setIsActivatingNotifs(false);
     }
@@ -419,23 +425,38 @@ const OnboardingPage: React.FC = () => {
               </div>
 
               <div className="bg-white rounded-2xl p-6 shadow-card border border-gray-100 text-center">
-                <div className="space-y-4">
-                  <button
-                    onClick={handleActivateNotifications}
-                    disabled={isActivatingNotifs}
-                    className="btn-primary py-3 px-8 text-base flex items-center gap-2 mx-auto disabled:opacity-50"
-                  >
-                    <Bell size={18} />
-                    {isActivatingNotifs ? 'Activando...' : 'Activar notificaciones'}
-                  </button>
-                  <button
-                    onClick={handleFinish}
-                    className="text-gray-400 hover:text-gray-600 text-sm transition-colors"
-                  >
-                    Omitir por ahora
-                  </button>
-                </div>
+                {!notifsActivated ? (
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleActivateNotifications}
+                      disabled={isActivatingNotifs}
+                      className="btn-primary py-3 px-8 text-base flex items-center gap-2 mx-auto disabled:opacity-50"
+                    >
+                      <Bell size={18} />
+                      {isActivatingNotifs ? 'Activando...' : 'Activar notificaciones'}
+                    </button>
+                    <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                      Las notificaciones son necesarias para que la app cumpla su función:
+                      avisarte cuando sea hora de cada medicamento.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto">
+                      <CheckCircle size={26} className="text-green-500" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">¡Notificaciones activadas!</p>
+                  </div>
+                )}
               </div>
+
+              {/* Si el navegador no soporta notificaciones, permitir continuar con aviso */}
+              {!notifsSupported && (
+                <p className="mt-4 text-xs text-amber-600 text-center">
+                  Tu navegador no soporta notificaciones. Te recomendamos instalar la app o usar
+                  Chrome/Edge para recibir los recordatorios.
+                </p>
+              )}
 
               <div className="mt-6 flex justify-between">
                 <button onClick={goBack} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm">
@@ -443,7 +464,8 @@ const OnboardingPage: React.FC = () => {
                 </button>
                 <button
                   onClick={handleFinish}
-                  className="btn-primary py-3 px-6 flex items-center gap-2"
+                  disabled={!notifsActivated && notifsSupported}
+                  className="btn-primary py-3 px-6 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Finalizar <ArrowRight size={16} />
                 </button>

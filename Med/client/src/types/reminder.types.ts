@@ -13,6 +13,12 @@ export interface Reminder {
     name: string;
     dosage: string;
     instructions?: string;
+    careProfileId?: string | null;
+    careProfile?: {
+      id: string;
+      name: string;
+      relationship: string;
+    } | null;
   };
 }
 

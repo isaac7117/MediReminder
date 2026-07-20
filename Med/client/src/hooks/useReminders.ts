@@ -81,6 +81,22 @@ export const useReminders = () => {
     }
   };
 
+  const snoozeReminder = async (id: string, minutes: number = 15) => {
+    try {
+      const response = await reminderService.snooze(id, minutes);
+      setReminders((prev: any) =>
+        prev.map((r: any) => (r.id === id ? response.reminder : r))
+      );
+      setTodayReminders((prev: any) =>
+        prev.map((r: any) => (r.id === id ? response.reminder : r))
+      );
+      return response.reminder;
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to snooze reminder');
+      throw err;
+    }
+  };
+
   useEffect(() => {
     // Solo fetch una vez al montar el componente Y si el usuario está autenticado
     const token = localStorage.getItem('authToken');
@@ -91,9 +107,10 @@ export const useReminders = () => {
     }
   }, [fetchTodayReminders, fetchAdherence]);
 
-  // Escuchar evento cuando se toma un medicamento desde una notificación
+  // Refrescar cuando una acción ocurre desde una notificación push
+  // (tomar / omitir / posponer)
   useEffect(() => {
-    const handleMedicationTaken = () => {
+    const handleNotificationAction = () => {
       const token = localStorage.getItem('authToken');
       if (token) {
         // Refrescar todos los datos: recordatorios de hoy y adherencia
@@ -102,8 +119,14 @@ export const useReminders = () => {
       }
     };
 
-    window.addEventListener('medication-taken', handleMedicationTaken);
-    return () => window.removeEventListener('medication-taken', handleMedicationTaken);
+    window.addEventListener('medication-taken', handleNotificationAction);
+    window.addEventListener('medication-skipped', handleNotificationAction);
+    window.addEventListener('medication-snoozed', handleNotificationAction);
+    return () => {
+      window.removeEventListener('medication-taken', handleNotificationAction);
+      window.removeEventListener('medication-skipped', handleNotificationAction);
+      window.removeEventListener('medication-snoozed', handleNotificationAction);
+    };
   }, [fetchTodayReminders, fetchAdherence]);
 
   return {
@@ -116,6 +139,7 @@ export const useReminders = () => {
     fetchTodayReminders,
     fetchAdherence,
     takeReminder,
-    skipReminder
+    skipReminder,
+    snoozeReminder
   };
 };

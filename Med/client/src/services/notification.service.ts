@@ -75,23 +75,30 @@ export const notificationService = {
     const hasPush = 'serviceWorker' in navigator && 'PushManager' in window;
     if (hasPush) {
       try {
-        const registration = await notificationService.registerServiceWorker();
+        await notificationService.registerServiceWorker();
 
-        // Wait for SW to be ready
-        await navigator.serviceWorker.ready;
+        // Wait for SW to be ready (with timeout to avoid infinite hang)
+        console.log('[Notif] Esperando SW ready...');
+        const swReady = await withTimeout(navigator.serviceWorker.ready, 10000, 'Service Worker tardó demasiado en activarse');
+        console.log('[Notif] SW ready, obteniendo VAPID key...');
 
-        const vapidPublicKey = await notificationService.getVAPIDPublicKey();
+        const vapidPublicKey = await withTimeout(notificationService.getVAPIDPublicKey(), 10000, 'No se pudo obtener la clave VAPID');
         if (!vapidPublicKey || vapidPublicKey.length < 20) {
           console.warn('[Notif] VAPID key vacía o inválida, usando notificaciones básicas');
           return 'basic';
         }
 
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-        });
+        console.log('[Notif] Suscribiendo a push...');
+        const subscription = await withTimeout(
+          (swReady as ServiceWorkerRegistration).pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+          }),
+          15000,
+          'La suscripción push tardó demasiado'
+        );
 
-        await notificationService.subscribe(subscription);
+        await withTimeout(notificationService.subscribe(subscription as PushSubscription), 10000, 'No se pudo registrar la suscripción en el servidor');
         console.log('[Notif] ✅ Push subscription creada');
         return 'push';
       } catch (pushError: any) {
@@ -215,5 +222,14 @@ function urlBase64ToUint8Array(base64String: string) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: ${message}`)), ms)
+    )
+  ]);
 }
 

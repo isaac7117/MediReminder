@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, X, SkipForward, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Check, X, SkipForward, Clock, CheckCircle, XCircle, AlarmClock, User } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateHelpers';
 import type { Reminder } from '../../types/reminder.types';
 import { STATUS_COLORS, STATUS_LABELS } from '../../utils/constants';
@@ -8,6 +8,7 @@ interface ReminderCardProps {
   reminder: Reminder;
   onTake: (id: string) => void;
   onSkip: (id: string) => void;
+  onSnooze?: (id: string) => void;
   isLoading: boolean;
 }
 
@@ -15,10 +16,14 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
   reminder,
   onTake,
   onSkip,
+  onSnooze,
   isLoading
 }) => {
   const statusColor = STATUS_COLORS[reminder.status as keyof typeof STATUS_COLORS];
   const isCompleted = reminder.status === 'taken' || reminder.status === 'skipped' || reminder.status === 'missed';
+
+  const careProfile = reminder.medication?.careProfile;
+  const patientName = careProfile && careProfile.relationship !== 'self' ? careProfile.name : null;
 
   const borderColor = reminder.status === 'taken' ? 'border-l-secondary-500' 
     : reminder.status === 'missed' ? 'border-l-red-400' 
@@ -48,6 +53,15 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
         </span>
       </div>
 
+      {patientName && (
+        <div className="flex items-center gap-1.5 mb-3 ml-12">
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-lg bg-secondary-50 text-secondary-700 border border-secondary-100">
+            <User size={12} />
+            Para: {patientName}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3 ml-12">
         <Clock size={12} />
         <span>{formatDateTime(reminder.scheduledTime, 'MMM dd HH:mm')}</span>
@@ -70,6 +84,17 @@ const ReminderCard: React.FC<ReminderCardProps> = ({
             <CheckCircle size={15} className="hidden sm:block" />
             <span>Tomar</span>
           </button>
+          {onSnooze && (
+            <button
+              onClick={() => onSnooze(reminder.id)}
+              disabled={isLoading}
+              title="Posponer 15 minutos"
+              className="flex-1 flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 active:scale-95 disabled:bg-gray-50 text-amber-700 font-medium py-3 sm:py-2 px-4 rounded-xl transition-all text-sm min-h-[44px]"
+            >
+              <AlarmClock size={16} />
+              <span>Posponer</span>
+            </button>
+          )}
           <button
             onClick={() => onSkip(reminder.id)}
             disabled={isLoading}
